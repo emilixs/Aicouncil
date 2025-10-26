@@ -10,7 +10,7 @@ export class LLMException extends HttpException {
   /**
    * The original error that caused this exception
    */
-  public readonly cause?: Error;
+  public readonly cause: Error | undefined;
 
   constructor(message: string, statusCode: number, cause?: Error) {
     super(message, statusCode, { cause });

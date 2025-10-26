@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { LLMDriver } from '../interfaces/llm-driver.interface';
 import { LLMMessage, LLMConfig, LLMResponse } from '../dto';
-import { retryWithBackoff } from '../utils/retry.util';
+import { retryWithBackoff, parseRetryAfter } from '../utils/retry.util';
 import {
   LLMException,
   LLMAuthenticationException,
@@ -17,7 +17,7 @@ export class OpenAIDriver extends LLMDriver {
   private readonly client: OpenAI;
 
   constructor(apiKey: string) {
-    super();
+    super(apiKey);
     this.client = new OpenAI({ apiKey });
   }
 
@@ -100,9 +100,9 @@ export class OpenAIDriver extends LLMDriver {
     }
   }
 
-  private mapFinishReason(reason: string | undefined): string {
+  private mapFinishReason(reason: string | undefined): LLMResponse['finishReason'] {
     if (!reason) return 'stop';
-    
+
     switch (reason) {
       case 'stop':
         return 'stop';
@@ -110,8 +110,10 @@ export class OpenAIDriver extends LLMDriver {
         return 'length';
       case 'content_filter':
         return 'content_filter';
+      case 'tool_calls':
+        return 'tool_calls';
       default:
-        return reason;
+        return 'stop';
     }
   }
 
@@ -132,10 +134,11 @@ export class OpenAIDriver extends LLMDriver {
 
     // Rate limit errors
     if (status === 429) {
+      const parsedRetryAfterMs = parseRetryAfter(retryAfter);
       return new LLMRateLimitException(
         'OpenAI rate limit exceeded',
-        retryAfter ? parseInt(retryAfter, 10) : undefined,
         error,
+        parsedRetryAfterMs ?? undefined,
       );
     }
 
@@ -169,7 +172,7 @@ export class OpenAIDriver extends LLMDriver {
     }
 
     // Generic LLM exception for unknown errors
-    return new LLMException(
+    return new LLMServiceException(
       `OpenAI error: ${error?.message || 'Unknown error'}`,
       error,
     );

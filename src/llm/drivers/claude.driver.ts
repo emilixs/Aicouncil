@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { LLMDriver } from '../interfaces/llm-driver.interface';
 import { LLMMessage, LLMConfig, LLMResponse } from '../dto';
-import { retryWithBackoff } from '../utils/retry.util';
+import { retryWithBackoff, parseRetryAfter } from '../utils/retry.util';
 import {
   LLMException,
   LLMAuthenticationException,
@@ -17,7 +17,7 @@ export class ClaudeDriver extends LLMDriver {
   private readonly client: Anthropic;
 
   constructor(apiKey: string) {
-    super();
+    super(apiKey);
     this.client = new Anthropic({ apiKey });
   }
 
@@ -124,7 +124,7 @@ export class ClaudeDriver extends LLMDriver {
     );
   }
 
-  private mapFinishReason(reason: string | null): string {
+  private mapFinishReason(reason: string | null): LLMResponse['finishReason'] {
     if (!reason) return 'stop';
 
     switch (reason) {
@@ -135,7 +135,7 @@ export class ClaudeDriver extends LLMDriver {
       case 'stop_sequence':
         return 'stop';
       default:
-        return reason;
+        return 'stop';
     }
   }
 
@@ -156,10 +156,11 @@ export class ClaudeDriver extends LLMDriver {
 
     // Rate limit errors
     if (status === 429) {
+      const parsedRetryAfterMs = parseRetryAfter(retryAfter);
       return new LLMRateLimitException(
         'Anthropic rate limit exceeded',
-        retryAfter ? parseInt(retryAfter, 10) : undefined,
         error,
+        parsedRetryAfterMs ?? undefined,
       );
     }
 
@@ -193,7 +194,7 @@ export class ClaudeDriver extends LLMDriver {
     }
 
     // Generic LLM exception for unknown errors
-    return new LLMException(
+    return new LLMServiceException(
       `Anthropic error: ${error?.message || 'Unknown error'}`,
       error,
     );
