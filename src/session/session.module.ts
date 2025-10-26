@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SessionController } from './session.controller';
 import { SessionService } from './session.service';
 import { ExpertModule } from '../expert/expert.module';
+import { MessageModule } from '../message/message.module';
 
 /**
  * Session module for managing expert council sessions.
@@ -9,7 +10,7 @@ import { ExpertModule } from '../expert/expert.module';
  * Exports SessionService for use by the Council orchestrator (subsequent phase).
  */
 @Module({
-  imports: [ExpertModule],
+  imports: [ExpertModule, MessageModule],
   controllers: [SessionController],
   providers: [SessionService],
   exports: [SessionService],

@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { SessionService } from './session.service';
 import { CreateSessionDto, SessionResponseDto } from './dto';
+import { MessageService } from '../message/message.service';
+import { MessageResponseDto } from '../message/dto';
 
 /**
  * REST controller for session management endpoints.
@@ -9,7 +11,10 @@ import { CreateSessionDto, SessionResponseDto } from './dto';
  */
 @Controller('sessions')
 export class SessionController {
-  constructor(private readonly sessionService: SessionService) {}
+  constructor(
+    private readonly sessionService: SessionService,
+    private readonly messageService: MessageService,
+  ) {}
 
   /**
    * Create a new session with the specified problem and experts.
@@ -45,6 +50,13 @@ export class SessionController {
   @Get(':id')
   findOne(@Param('id') id: string): Promise<SessionResponseDto> {
     return this.sessionService.findOne(id);
+  }
+
+  @Get(':id/messages')
+  async getMessages(@Param('id') id: string): Promise<MessageResponseDto[]> {
+    // Validate that session exists
+    await this.sessionService.findOne(id);
+    return this.messageService.findBySession(id);
   }
 }
 
