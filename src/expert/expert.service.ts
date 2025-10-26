@@ -24,7 +24,7 @@ export class ExpertService {
           specialty: createExpertDto.specialty,
           systemPrompt: createExpertDto.systemPrompt,
           driverType: createExpertDto.driverType,
-          config: createExpertDto.config,
+          config: createExpertDto.config as any,
         },
       });
 
@@ -66,13 +66,13 @@ export class ExpertService {
   }
 
   async update(id: string, updateExpertDto: UpdateExpertDto): Promise<ExpertResponseDto> {
-    // Check if expert exists
-    await this.findOne(id);
-
     try {
       const expert = await this.prisma.expert.update({
         where: { id },
-        data: updateExpertDto,
+        data: {
+          ...updateExpertDto,
+          config: updateExpertDto.config as any,
+        },
       });
 
       return ExpertResponseDto.fromPrisma(expert);
@@ -90,9 +90,6 @@ export class ExpertService {
   }
 
   async remove(id: string): Promise<void> {
-    // Check if expert exists
-    await this.findOne(id);
-
     try {
       await this.prisma.expert.delete({
         where: { id },

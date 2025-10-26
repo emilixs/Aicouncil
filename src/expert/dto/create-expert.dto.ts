@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength, MaxLength, IsEnum, IsObject, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, MaxLength, IsEnum, IsObject, ValidateNested, IsDefined } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DriverType } from '@prisma/client';
 import { LLMConfig } from '../../llm/dto';
@@ -34,12 +34,14 @@ export class CreateExpertDto {
    * The LLM driver type to use for this expert
    * Valid values: OPENAI, ANTHROPIC
    */
+  @IsDefined()
   @IsEnum(DriverType)
   driverType: DriverType;
 
   /**
    * Driver-specific configuration (model, temperature, maxTokens, etc.)
    */
+  @IsDefined()
   @IsObject()
   @ValidateNested()
   @Type(() => LLMConfig)

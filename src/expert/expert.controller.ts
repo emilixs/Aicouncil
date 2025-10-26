@@ -8,11 +8,14 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { ExpertService } from './expert.service';
 import { CreateExpertDto, UpdateExpertDto, ExpertResponseDto } from './dto';
 
 @Controller('experts')
+@UseInterceptors(ClassSerializerInterceptor)
 export class ExpertController {
   constructor(private readonly expertService: ExpertService) {}
 

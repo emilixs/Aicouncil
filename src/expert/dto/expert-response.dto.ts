@@ -1,5 +1,6 @@
 import { Expose } from 'class-transformer';
 import { DriverType, Expert } from '@prisma/client';
+import { JsonValue } from '@prisma/client/runtime/library';
 
 export class ExpertResponseDto {
   @Expose()
@@ -18,7 +19,7 @@ export class ExpertResponseDto {
   driverType: DriverType;
 
   @Expose()
-  config: object;
+  config: JsonValue;
 
   @Expose()
   createdAt: Date;
