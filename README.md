@@ -253,6 +253,239 @@ The system uses the factory pattern: `DriverFactory` creates driver instances ba
 - **Common interface**: The abstract `LLMDriver` interface ensures all providers have consistent behavior
 - **Async generators**: Streaming uses async generators for compatibility with WebSocket gateways
 
+## Council Orchestration System
+
+### Overview
+
+The Council module orchestrates multi-agent discussions between configured experts. The system enables collaborative problem-solving where multiple AI experts with different specialties work together to reach consensus on complex questions.
+
+**Discussion Flow:**
+1. Create a session with a problem statement and select experts
+2. Start the discussion via the REST API
+3. Experts take turns responding in round-robin order
+4. Each expert is aware of other experts' competences and can reference them by name
+5. Discussion continues until consensus is reached or message limit is hit
+6. Session concludes with final status and consensusReached flag
+
+**Key Features:**
+- **Expert Awareness**: Experts know each other's names and specialties, enabling true collaboration
+- **Round-Robin Turn-Taking**: Fair participation with each expert getting equal opportunities to contribute
+- **Consensus Detection**: Automatic detection of agreement through explicit keywords
+- **Message Limits**: Configurable limits prevent infinite discussions
+- **Status Tracking**: Sessions transition through PENDING → ACTIVE → COMPLETED states
+
+### Starting a Discussion
+
+**Endpoint:** `POST /sessions/:id/start`
+
+**Prerequisites:**
+- Session must exist and be in PENDING status
+- All experts in the session must have valid configurations
+- Required API keys must be configured for the driver types used by experts
+
+**Example Request:**
+```bash
+curl -X POST http://localhost:3000/sessions/abc123-def456-ghi789/start
+```
+
+**Response:**
+```json
+{
+  "id": "abc123-def456-ghi789",
+  "problemStatement": "How should we architect a scalable microservices system?",
+  "status": "COMPLETED",
+  "consensusReached": true,
+  "maxMessages": 50,
+  "createdAt": "2025-10-26T10:00:00Z",
+  "updatedAt": "2025-10-26T10:05:30Z",
+  "experts": [...]
+}
+```
+
+**Important Notes:**
+- This is a **long-running synchronous operation** that may take seconds to minutes
+- Duration depends on number of experts, problem complexity, message limit, and LLM response times
+- The endpoint returns only after the discussion concludes
+- Future WebSocket gateway will provide real-time streaming for better UX
+
+### How Discussions Work
+
+#### Turn-Taking
+
+Experts take turns in **round-robin order**, ensuring each expert participates equally. The order is determined by the order experts were added to the session. Each expert gets a turn to respond before the cycle repeats.
+
+#### Expert Context
+
+Each expert receives comprehensive context when generating their response:
+
+1. **System Prompt**: Their own system prompt defining their role and expertise
+2. **Problem Statement**: The original question/problem from the session
+3. **Expert List**: Names and specialties of all participating experts
+4. **Conversation History**: Last 10 messages with expert names and content
+5. **Collaboration Instructions**: Explicit instruction to collaborate and state agreement when consensus is reached
+
+**Example Context Sent to Expert:**
+```
+System: You are Sarah, a Security Expert specializing in application security and threat modeling.
+
+Other experts in this discussion:
+- John (Backend Architect): Specializes in scalable backend systems
+- Maria (DevOps Engineer): Specializes in CI/CD and infrastructure
+
+Problem: How should we architect a scalable microservices system?
+
+Recent conversation:
+[John (Backend Architect)]: We should use event-driven architecture with message queues...
+[Maria (DevOps Engineer)]: I agree with John's approach. For deployment, we should use Kubernetes...
+
+Please provide your expert opinion. If you agree with the current direction, explicitly state "I agree" or "consensus reached".
+```
+
+#### Consensus Detection
+
+The discussion concludes when an expert's message contains explicit agreement keywords (case-insensitive):
+
+- "I agree"
+- "consensus reached"
+- "we agree"
+- "I concur"
+- "agreed"
+- "we have consensus"
+- "we reached consensus"
+- "in agreement"
+
+When consensus is detected:
+- Session status transitions to COMPLETED
+- `consensusReached` flag is set to `true`
+- No further messages are generated
+
+#### Message Limits
+
+Discussions also conclude if the session's `maxMessages` limit is reached:
+- Session status transitions to COMPLETED
+- `consensusReached` flag is set to `false`
+- This prevents infinite discussions when experts cannot reach agreement
+
+#### Session Status Transitions
+
+- **PENDING**: Initial state after session creation
+- **ACTIVE**: Discussion is in progress (set when discussion starts)
+- **COMPLETED**: Discussion concluded (consensus reached or message limit hit)
+
+### Expert Collaboration
+
+Experts can reference each other by name in their responses, enabling natural collaboration:
+
+**Example Expert Response:**
+```
+As Sarah (Security Expert) mentioned, we should implement OAuth 2.0 for authentication.
+Building on John's event-driven architecture proposal, I recommend adding encryption
+at rest for the message queues to protect sensitive data in transit.
+```
+
+The system prompt includes all experts' names and specialties, so experts can:
+- Acknowledge other experts' contributions
+- Build on previous suggestions
+- Address specific experts by name
+- Reference expertise areas when relevant
+
+This creates a more natural and collaborative discussion compared to isolated responses.
+
+### Viewing Discussion Results
+
+After the discussion concludes, retrieve the results:
+
+**Get Session Status:**
+```bash
+curl http://localhost:3000/sessions/abc123-def456-ghi789
+```
+
+Returns session with `status` (COMPLETED) and `consensusReached` flag.
+
+**Get All Messages:**
+```bash
+curl http://localhost:3000/sessions/abc123-def456-ghi789/messages
+```
+
+Returns all messages in chronological order. Each message includes:
+- `expertId`: UUID of the expert who generated the message
+- `expertName`: Display name of the expert
+- `expertSpecialty`: Specialty description of the expert
+- `content`: The message content
+- `timestamp`: When the message was created
+- `isIntervention`: `false` for expert messages, `true` for user interventions (future feature)
+
+### Configuration Tips
+
+#### Expert Selection
+
+Choose experts with **complementary specialties** for richer discussions:
+
+**Good Example:**
+- Backend Architect (system design)
+- Security Expert (threat modeling)
+- DevOps Engineer (deployment and operations)
+- Database Specialist (data modeling)
+
+**Poor Example:**
+- Three Backend Architects with identical specialties
+- Experts with overlapping competences
+
+#### System Prompts
+
+Write **clear, specific system prompts** that define each expert's role and perspective:
+
+**Good Example:**
+```
+You are Sarah, a Security Expert with 15 years of experience in application security,
+threat modeling, and compliance. Your focus is on identifying security vulnerabilities,
+recommending security best practices, and ensuring systems meet security standards
+like OWASP Top 10 and SOC 2.
+```
+
+**Poor Example:**
+```
+You are a security expert.
+```
+
+#### Message Limits
+
+Set appropriate limits based on problem complexity:
+
+- **Simple questions** (10-20 messages): Quick consensus on straightforward topics
+- **Moderate complexity** (30-50 messages): Standard architectural discussions
+- **Complex problems** (50-100 messages): Deep technical debates requiring multiple rounds
+
+**Note:** Higher limits allow more thorough discussions but increase cost and latency.
+
+#### Model Selection
+
+Use **more capable models** for better reasoning and consensus:
+
+**Recommended for Council Discussions:**
+- OpenAI: `gpt-4`, `gpt-4-turbo`
+- Anthropic: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`
+
+**Not Recommended:**
+- `gpt-3.5-turbo`: May struggle with complex reasoning and consensus
+- `claude-3-haiku-20240307`: Optimized for speed over reasoning depth
+
+#### Temperature Settings
+
+Adjust temperature based on discussion goals:
+
+- **Lower temperature (0.3-0.5)**: Focused, deterministic discussions for technical decisions
+- **Higher temperature (0.7-0.9)**: Creative exploration and brainstorming sessions
+
+**Example Configuration:**
+```json
+{
+  "model": "gpt-4",
+  "temperature": 0.5,
+  "maxTokens": 2000
+}
+```
+
 ## Running the Application
 
 ### Development mode
