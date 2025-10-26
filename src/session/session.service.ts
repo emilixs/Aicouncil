@@ -44,19 +44,14 @@ export class SessionService {
   ): Promise<SessionResponseDto> {
     const { problemStatement, expertIds, maxMessages } = createSessionDto;
 
-    // Validate that all expert IDs exist
-    const invalidIds: string[] = [];
-    for (const expertId of expertIds) {
-      try {
-        await this.expertService.findOne(expertId);
-      } catch (error) {
-        if (error instanceof NotFoundException) {
-          invalidIds.push(expertId);
-        } else {
-          throw error;
-        }
-      }
-    }
+    // Validate that all expert IDs exist using a single batch query
+    const existingExperts = await this.prisma.expert.findMany({
+      where: { id: { in: expertIds } },
+      select: { id: true },
+    });
+
+    const existingIds = new Set(existingExperts.map((expert) => expert.id));
+    const invalidIds = expertIds.filter((id) => !existingIds.has(id));
 
     if (invalidIds.length > 0) {
       throw new NotFoundException(
@@ -78,7 +73,7 @@ export class SessionService {
         const newSession = await tx.session.create({
           data: {
             problemStatement,
-            maxMessages,
+            maxMessages: maxMessages ?? undefined,
             status: SessionStatus.PENDING,
           },
         });
@@ -122,10 +117,10 @@ export class SessionService {
   }
 
   /**
-   * Retrieve all sessions with their participating experts.
+   * Retrieve all sessions with their participating experts and message counts.
    * Sessions are ordered by creation date (newest first).
    *
-   * @returns Array of all sessions with experts
+   * @returns Array of all sessions with experts and message counts
    */
   async findAll(): Promise<SessionResponseDto[]> {
     const sessions = await this.prisma.session.findMany({
@@ -133,6 +128,11 @@ export class SessionService {
         experts: {
           include: {
             expert: true,
+          },
+        },
+        _count: {
+          select: {
+            messages: true,
           },
         },
       },

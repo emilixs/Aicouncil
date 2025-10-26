@@ -10,6 +10,11 @@ export class UpdateSessionDto {
   /**
    * Session status indicating the current state.
    * Valid values: PENDING, ACTIVE, COMPLETED, CANCELLED
+   *
+   * Note: The public API term "concluded" maps to SessionStatus.COMPLETED.
+   * Use COMPLETED when a session has finished successfully with a resolution.
+   * Use CANCELLED when a session is terminated without completion.
+   *
    * Status transitions are validated by the service layer.
    */
   @IsOptional()

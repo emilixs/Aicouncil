@@ -26,10 +26,10 @@ export class SessionController {
   }
 
   /**
-   * Retrieve all sessions with their participating experts.
+   * Retrieve all sessions with their participating experts and message counts.
    * Sessions are ordered by creation date (newest first).
    *
-   * @returns Array of all sessions
+   * @returns Array of all sessions with experts and message counts
    */
   @Get()
   findAll(): Promise<SessionResponseDto[]> {
