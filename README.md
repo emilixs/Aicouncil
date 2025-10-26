@@ -253,6 +253,35 @@ The system uses the factory pattern: `DriverFactory` creates driver instances ba
 - **Common interface**: The abstract `LLMDriver` interface ensures all providers have consistent behavior
 - **Async generators**: Streaming uses async generators for compatibility with WebSocket gateways
 
+## Frontend Application
+
+### Overview
+
+React single-page application (SPA) located in the `frontend/` directory. Built with Vite, TypeScript, and Shadcn UI to provide a modern, responsive interface for managing AI experts, creating discussion sessions, and monitoring real-time collaborative problem-solving.
+
+### Getting Started
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Access the application at `http://localhost:5173`
+
+### Features
+
+- **Expert Management**: Create, edit, and delete AI experts with custom configurations
+- **Session Creation**: Start new discussion sessions with selected experts
+- **Real-time Monitoring**: Watch live discussions via WebSocket connections
+- **User Interventions**: Inject messages during active discussions
+- **Theme Support**: Light/dark mode with system preference detection
+
+### Development
+
+For detailed information about the frontend architecture, components, and development workflow, refer to [`frontend/README.md`](frontend/README.md).
+
 ## Council Orchestration System
 
 ### Overview

@@ -45,3 +45,10 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.eslintcache
+
