@@ -3,7 +3,6 @@ import { CouncilController } from './council.controller';
 import { CouncilService } from './council.service';
 import { SessionModule } from '../session/session.module';
 import { MessageModule } from '../message/message.module';
-import { ExpertModule } from '../expert/expert.module';
 import { LlmModule } from '../llm/llm.module';
 
 /**
@@ -14,16 +13,15 @@ import { LlmModule } from '../llm/llm.module';
  * - CouncilService: Core orchestration logic for managing expert discussions
  *
  * Dependencies:
- * - SessionModule: Session management and status transitions
+ * - SessionModule: Session management and status transitions (includes expert data via session.experts)
  * - MessageModule: Message creation and retrieval
- * - ExpertModule: Expert configuration and retrieval
  * - LlmModule: LLM driver factory for generating expert responses
  *
  * Exports:
  * - CouncilService: Available for future WebSocket gateway to enable real-time streaming
  */
 @Module({
-  imports: [SessionModule, MessageModule, ExpertModule, LlmModule],
+  imports: [SessionModule, MessageModule, LlmModule],
   controllers: [CouncilController],
   providers: [CouncilService],
   exports: [CouncilService],

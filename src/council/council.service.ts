@@ -8,7 +8,6 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { SessionService } from '../session/session.service';
 import { MessageService } from '../message/message.service';
-import { ExpertService } from '../expert/expert.service';
 import { DriverFactory } from '../llm/factories/driver.factory';
 import { SessionResponseDto } from '../session/dto';
 import { ExpertResponseDto } from '../expert/dto';
@@ -17,7 +16,7 @@ import { LLMMessage, LLMConfig } from '../llm/dto';
 
 /**
  * CouncilService - Core orchestration service for multi-agent discussions
- * 
+ *
  * Manages the discussion loop between experts, handles consensus detection,
  * and coordinates session lifecycle transitions.
  */
@@ -28,9 +27,16 @@ export class CouncilService {
   constructor(
     private readonly sessionService: SessionService,
     private readonly messageService: MessageService,
-    private readonly expertService: ExpertService,
     private readonly driverFactory: DriverFactory,
   ) {}
+
+  /**
+   * Comment 4: Sleep utility for inter-turn delay
+   * @param ms - Milliseconds to sleep
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
   /**
    * Start a multi-agent discussion for a session
@@ -42,7 +48,7 @@ export class CouncilService {
   async startDiscussion(sessionId: string): Promise<SessionResponseDto> {
     // Validate session exists and is in PENDING status
     const session = await this.sessionService.findOne(sessionId);
-    
+
     if (session.status !== SessionStatus.PENDING) {
       throw new BadRequestException(
         `Cannot start discussion for session with status ${session.statusDisplay}. Session must be in pending status.`,
@@ -50,10 +56,6 @@ export class CouncilService {
     }
 
     try {
-      // Transition session to ACTIVE
-      await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
-      this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
-
       // Comment 5: Use experts directly from session (remove redundant re-fetching)
       const experts = session.experts;
 
@@ -63,6 +65,34 @@ export class CouncilService {
           'Cannot start discussion for session with no experts. Session must have at least one expert.',
         );
       }
+
+      // Comment 1: Pre-validate expert configs and API keys before switching session to ACTIVE
+      this.logger.log(`Validating ${experts.length} expert configurations...`);
+      for (const expert of experts) {
+        // Transform and validate LLMConfig
+        const expertConfig = plainToInstance(LLMConfig, expert.config);
+        const validationErrors = await validate(expertConfig);
+
+        if (validationErrors.length > 0 || !expertConfig.model) {
+          throw new BadRequestException(
+            `Expert "${expert.name}" (${expert.id}) has invalid config. Missing or invalid required field: model`,
+          );
+        }
+
+        // Verify API key is present by attempting to create driver
+        try {
+          this.driverFactory.createDriver(expert.driverType);
+        } catch (error) {
+          throw new BadRequestException(
+            `Expert "${expert.name}" (${expert.id}) cannot be initialized: ${error.message}`,
+          );
+        }
+      }
+      this.logger.log(`All expert configurations validated successfully`);
+
+      // Transition session to ACTIVE only after all validations pass
+      await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
+      this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
 
       this.logger.log(`Starting discussion with ${experts.length} experts`);
 
@@ -95,41 +125,68 @@ export class CouncilService {
           recentMessages,
         );
 
-        // Create LLM driver for the expert
-        const driver = this.driverFactory.createDriver(currentExpert.driverType);
+        // Comment 2: Handle per-expert LLM errors gracefully
+        try {
+          // Create LLM driver for the expert
+          const driver = this.driverFactory.createDriver(currentExpert.driverType);
 
-        // Comment 4: Safe LLMConfig transformation with validation
-        const expertConfig = plainToInstance(LLMConfig, currentExpert.config);
-        const validationErrors = await validate(expertConfig);
+          // Transform config (validation already done during pre-validation)
+          const expertConfig = plainToInstance(LLMConfig, currentExpert.config);
 
-        if (validationErrors.length > 0 || !expertConfig.model) {
-          throw new BadRequestException(
-            `Expert "${currentExpert.name}" (${currentExpert.id}) has invalid config. Missing or invalid required field: model`,
-          );
-        }
+          // Get response from LLM
+          const response = await driver.chat(contextMessages, expertConfig);
+          this.logger.log(`Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`);
 
-        // Get response from LLM
-        const response = await driver.chat(contextMessages, expertConfig);
-        this.logger.log(`Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`);
+          // Comment 5: Guard against empty or whitespace-only LLM responses
+          const trimmedContent = response.content.trim();
+          if (!trimmedContent) {
+            this.logger.warn(`Expert ${currentExpert.name} returned empty response, skipping message creation`);
+            currentExpertIndex++;
+            continue;
+          }
 
-        // Create message in database
-        await this.messageService.create({
-          sessionId,
-          expertId: currentExpert.id,
-          content: response.content,
-          role: MessageRole.ASSISTANT,
-        });
+          // Create message in database
+          await this.messageService.create({
+            sessionId,
+            expertId: currentExpert.id,
+            content: trimmedContent,
+            role: MessageRole.ASSISTANT,
+          });
 
-        // Check for consensus
-        consensusReached = this.detectConsensus(response.content);
-        
-        if (consensusReached) {
-          this.logger.log(`Consensus detected in session ${sessionId}`);
-          break;
+          // Check for consensus
+          consensusReached = this.detectConsensus(trimmedContent);
+
+          if (consensusReached) {
+            this.logger.log(`Consensus detected in session ${sessionId}`);
+            break;
+          }
+        } catch (error) {
+          // Comment 2: Handle transient errors gracefully without cancelling session
+          const isTransientError =
+            error.name === 'LLMRateLimitException' ||
+            error.name === 'LLMTimeoutException' ||
+            error.name === 'LLMServiceException';
+
+          if (isTransientError) {
+            this.logger.warn(
+              `Transient error for expert ${currentExpert.name}: ${error.message}. Continuing to next expert.`,
+            );
+            // Continue to next expert without throwing
+          } else {
+            // Fatal errors (authentication, invalid config, etc.) should still throw
+            this.logger.error(
+              `Fatal error for expert ${currentExpert.name}: ${error.message}`,
+              error.stack,
+            );
+            throw error;
+          }
         }
 
         // Move to next expert
         currentExpertIndex++;
+
+        // Comment 4: Add small inter-turn delay to reduce provider rate-limit risk
+        await this.sleep(200); // 200ms delay between turns
       }
 
       // Conclude the session
