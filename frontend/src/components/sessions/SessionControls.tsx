@@ -15,18 +15,28 @@ import {
   CheckCircle2,
   Clock,
   Play,
+  Pause,
+  Square,
   Wifi,
   WifiOff,
   Users,
 } from "lucide-react";
 
+interface CurrentExpertTurn {
+  expertId: string;
+  expertName: string;
+  turnNumber: number;
+}
+
 interface SessionControlsProps {
   session: SessionResponse;
   isConnected: boolean;
   isDiscussionActive: boolean;
-  currentExpertTurn: string | null;
+  currentExpertTurn: CurrentExpertTurn | null;
   messageCount: number;
   onStartDiscussion: () => void;
+  onPauseDiscussion: () => void;
+  onStopDiscussion: () => void;
 }
 
 export function SessionControls({
@@ -36,6 +46,8 @@ export function SessionControls({
   currentExpertTurn,
   messageCount,
   onStartDiscussion,
+  onPauseDiscussion,
+  onStopDiscussion,
 }: SessionControlsProps) {
   const statusColor = {
     [SessionStatus.PENDING]: "bg-yellow-100 text-yellow-800",
@@ -136,7 +148,11 @@ export function SessionControls({
               <Play className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
                 Discussion is active
-                {currentExpertTurn && ` - Waiting for expert response`}
+                {currentExpertTurn && (
+                  <span>
+                    {` - Current turn: ${currentExpertTurn.expertName} (Turn ${currentExpertTurn.turnNumber})`}
+                  </span>
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -152,7 +168,7 @@ export function SessionControls({
         </div>
       </CardContent>
 
-      <CardFooter>
+      <CardFooter className="flex gap-2">
         {session.status === SessionStatus.PENDING && (
           <Button
             onClick={onStartDiscussion}
@@ -162,6 +178,29 @@ export function SessionControls({
             <Play className="h-4 w-4 mr-2" />
             Start Discussion
           </Button>
+        )}
+
+        {session.status === SessionStatus.ACTIVE && (
+          <>
+            <Button
+              onClick={onPauseDiscussion}
+              disabled={!isConnected || !isDiscussionActive}
+              variant="outline"
+              className="flex-1"
+            >
+              <Pause className="h-4 w-4 mr-2" />
+              Pause
+            </Button>
+            <Button
+              onClick={onStopDiscussion}
+              disabled={!isConnected || !isDiscussionActive}
+              variant="destructive"
+              className="flex-1"
+            >
+              <Square className="h-4 w-4 mr-2" />
+              Stop
+            </Button>
+          </>
         )}
 
         {session.status === SessionStatus.COMPLETED && (

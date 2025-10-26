@@ -33,6 +33,8 @@ export default function SessionDetailPage() {
     currentExpertTurn,
     startDiscussion,
     sendIntervention,
+    pauseDiscussion,
+    stopDiscussion,
     disconnect,
   } = useWebSocket(id || "");
 
@@ -69,8 +71,25 @@ export default function SessionDetailPage() {
     fetchData();
   }, [id, toast]);
 
-  // Merge initial messages with WebSocket messages
-  const allMessages = [...initialMessages, ...wsMessages];
+  // Merge initial messages with WebSocket messages, deduplicate by id, and sort by timestamp
+  const allMessages = (() => {
+    const messageMap = new Map<string, MessageResponse>();
+
+    // Add initial messages
+    initialMessages.forEach((msg) => {
+      messageMap.set(msg.id, msg);
+    });
+
+    // Add/override with WebSocket messages
+    wsMessages.forEach((msg) => {
+      messageMap.set(msg.id, msg);
+    });
+
+    // Convert to array and sort by timestamp
+    return Array.from(messageMap.values()).sort((a, b) => {
+      return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+    });
+  })();
 
   // Cleanup on unmount
   useEffect(() => {
@@ -159,14 +178,14 @@ export default function SessionDetailPage() {
             <h2 className="text-lg font-semibold mb-3">Discussion</h2>
             <MessageList
               messages={allMessages}
-              consensusReached={consensusReached}
+              consensusReached={consensusReached || session.consensusReached}
               loading={loading}
             />
           </div>
 
           <InterventionPanel
             onSendIntervention={sendIntervention}
-            disabled={!isDiscussionActive}
+            disabled={!isDiscussionActive || session.status === "COMPLETED"}
             isConnected={isConnected}
           />
         </div>
@@ -180,6 +199,8 @@ export default function SessionDetailPage() {
             currentExpertTurn={currentExpertTurn}
             messageCount={allMessages.length}
             onStartDiscussion={startDiscussion}
+            onPauseDiscussion={pauseDiscussion}
+            onStopDiscussion={stopDiscussion}
           />
 
           {/* Expert Details Card */}

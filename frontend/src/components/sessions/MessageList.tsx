@@ -47,15 +47,19 @@ export function MessageList({ messages, consensusReached, loading }: MessageList
         ) : (
           // Messages
           <>
-            {messages.map((message, index) => (
-              <div key={message.id}>
-                <MessageItem
-                  message={message}
-                  isConsensusMessage={message.role === "SYSTEM" && consensusReached}
-                />
-                {index < messages.length - 1 && <Separator className="my-2" />}
-              </div>
-            ))}
+            {messages.map((message, index) => {
+              // Check if this is the consensus message by id pattern
+              const isConsensusMessage = message.id.startsWith("consensus-");
+              return (
+                <div key={message.id}>
+                  <MessageItem
+                    message={message}
+                    isConsensusMessage={isConsensusMessage}
+                  />
+                  {index < messages.length - 1 && <Separator className="my-2" />}
+                </div>
+              );
+            })}
 
             {/* Consensus Alert */}
             {consensusReached && (

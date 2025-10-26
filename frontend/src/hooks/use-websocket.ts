@@ -4,6 +4,12 @@ import { createSocketConnection, disconnectSocket } from "@/lib/socket";
 import { getSessionToken } from "@/lib/api/sessions";
 import type { MessageResponse, MessageRole } from "@/types";
 
+interface CurrentExpertTurn {
+  expertId: string;
+  expertName: string;
+  turnNumber: number;
+}
+
 interface UseWebSocketReturn {
   socket: Socket | null;
   isConnected: boolean;
@@ -11,9 +17,11 @@ interface UseWebSocketReturn {
   messages: MessageResponse[];
   consensusReached: boolean;
   isDiscussionActive: boolean;
-  currentExpertTurn: string | null;
+  currentExpertTurn: CurrentExpertTurn | null;
   startDiscussion: () => void;
   sendIntervention: (content: string) => Promise<void>;
+  pauseDiscussion: () => void;
+  stopDiscussion: () => void;
   disconnect: () => void;
 }
 
@@ -24,7 +32,7 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
   const [messages, setMessages] = useState<MessageResponse[]>([]);
   const [consensusReached, setConsensusReached] = useState(false);
   const [isDiscussionActive, setIsDiscussionActive] = useState(false);
-  const [currentExpertTurn, setCurrentExpertTurn] = useState<string | null>(null);
+  const [currentExpertTurn, setCurrentExpertTurn] = useState<CurrentExpertTurn | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
   // Initialize socket connection
@@ -59,9 +67,13 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
         });
 
         // Expert turn events
-        newSocket.on("expert-turn-start", (data: { expertId: string; expertName: string }) => {
+        newSocket.on("expert-turn-start", (data: { expertId: string; expertName: string; turnNumber: number }) => {
           if (isMounted) {
-            setCurrentExpertTurn(data.expertId);
+            setCurrentExpertTurn({
+              expertId: data.expertId,
+              expertName: data.expertName,
+              turnNumber: data.turnNumber,
+            });
           }
         });
 
@@ -127,15 +139,22 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
 
     return () => {
       isMounted = false;
+      // Disconnect socket when sessionId changes
+      if (socketRef.current) {
+        disconnectSocket(socketRef.current);
+        socketRef.current = null;
+        setSocket(null);
+        setIsConnected(false);
+      }
     };
   }, [sessionId]);
 
   // Start discussion
   const startDiscussion = useCallback(() => {
     if (socket?.connected) {
-      socket.emit("start-discussion");
+      socket.emit("start-discussion", { sessionId });
     }
-  }, [socket]);
+  }, [socket, sessionId]);
 
   // Send intervention
   const sendIntervention = useCallback(
@@ -146,7 +165,7 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           return;
         }
 
-        socket.emit("intervention", { content }, (response: { success: boolean; error?: string }) => {
+        socket.emit("intervention", { sessionId, content }, (response: { success: boolean; error?: string }) => {
           if (response.success) {
             resolve();
           } else {
@@ -155,8 +174,22 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
         });
       });
     },
-    [socket]
+    [socket, sessionId]
   );
+
+  // Pause discussion
+  const pauseDiscussion = useCallback(() => {
+    if (socket?.connected) {
+      socket.emit("pause-discussion", { sessionId });
+    }
+  }, [socket, sessionId]);
+
+  // Stop discussion
+  const stopDiscussion = useCallback(() => {
+    if (socket?.connected) {
+      socket.emit("stop-discussion", { sessionId });
+    }
+  }, [socket, sessionId]);
 
   // Disconnect
   const disconnect = useCallback(() => {
@@ -185,6 +218,8 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
     currentExpertTurn,
     startDiscussion,
     sendIntervention,
+    pauseDiscussion,
+    stopDiscussion,
     disconnect,
   };
 }

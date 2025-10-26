@@ -186,11 +186,16 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
                   min="5"
                   max="200"
                   {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Let zod handle coercion and validation
+                    field.onChange(value === "" ? undefined : value);
+                  }}
+                  value={field.value ?? ""}
                 />
               </FormControl>
               <div className="text-xs text-muted-foreground">
-                Discussion will end after {field.value} messages or consensus is reached
+                Discussion will end after {field.value || 30} messages or consensus is reached
               </div>
               <FormMessage />
             </FormItem>
