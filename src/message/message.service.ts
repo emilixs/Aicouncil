@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
+import { SessionStatus } from '@prisma/client';
 import { PrismaService } from '../common/prisma.service';
 import { CreateMessageDto, MessageResponseDto } from './dto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
@@ -21,7 +22,7 @@ export class MessageService {
       }
 
       // Validate that session status is ACTIVE
-      if (session.status !== 'ACTIVE') {
+      if (session.status !== SessionStatus.ACTIVE) {
         throw new BadRequestException(
           `Cannot add messages to session with status ${session.status}. Session must be ACTIVE.`,
         );
@@ -45,22 +46,30 @@ export class MessageService {
         }
       }
 
-      // Check message count against maxMessages limit
-      const messageCount = await this.prisma.message.count({
-        where: { sessionId: createMessageDto.sessionId },
-      });
+      // Use transaction with Serializable isolation to prevent race conditions
+      const message = await this.prisma.$transaction(
+        async (tx) => {
+          // Re-check message count within transaction to prevent race conditions
+          const messageCount = await tx.message.count({
+            where: { sessionId: createMessageDto.sessionId },
+          });
 
-      if (messageCount >= session.maxMessages) {
-        throw new BadRequestException(
-          `Session has reached maximum message limit of ${session.maxMessages}`,
-        );
-      }
+          if (messageCount >= session.maxMessages) {
+            throw new BadRequestException(
+              `Session has reached maximum message limit of ${session.maxMessages}`,
+            );
+          }
 
-      // Create message
-      const message = await this.prisma.message.create({
-        data: createMessageDto,
-        include: { expert: true },
-      });
+          // Create message within transaction
+          return await tx.message.create({
+            data: createMessageDto,
+            include: { expert: true },
+          });
+        },
+        {
+          isolationLevel: 'Serializable',
+        },
+      );
 
       return MessageResponseDto.fromPrisma(message);
     } catch (error) {

@@ -9,7 +9,6 @@ import {
 import { SessionStatus } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../common/prisma.service';
-import { ExpertService } from '../expert/expert.service';
 import {
   CreateSessionDto,
   UpdateSessionDto,
@@ -26,7 +25,6 @@ export class SessionService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly expertService: ExpertService,
   ) {}
 
   /**

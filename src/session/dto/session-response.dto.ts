@@ -1,4 +1,4 @@
-import { Expose } from 'class-transformer';
+import { Expose, Exclude } from 'class-transformer';
 import { SessionStatus, Session, SessionExpert, Expert } from '@prisma/client';
 import { ExpertResponseDto } from '../../expert/dto';
 
@@ -21,9 +21,16 @@ export class SessionResponseDto {
 
   /**
    * Current session state (PENDING, ACTIVE, COMPLETED, CANCELLED)
+   * Internal field for service logic
+   */
+  @Exclude()
+  status: SessionStatus;
+
+  /**
+   * User-facing status display (pending, active, concluded, cancelled)
    */
   @Expose()
-  status: SessionStatus;
+  statusDisplay: string;
 
   /**
    * Maximum number of messages allowed in this session
@@ -78,10 +85,19 @@ export class SessionResponseDto {
       _count?: { messages: number };
     },
   ): SessionResponseDto {
+    // Map internal status to user-facing display value
+    const statusDisplayMap: Record<SessionStatus, string> = {
+      [SessionStatus.PENDING]: 'pending',
+      [SessionStatus.ACTIVE]: 'active',
+      [SessionStatus.COMPLETED]: 'concluded',
+      [SessionStatus.CANCELLED]: 'cancelled',
+    };
+
     return new SessionResponseDto({
       id: session.id,
       problemStatement: session.problemStatement,
       status: session.status,
+      statusDisplay: statusDisplayMap[session.status],
       maxMessages: session.maxMessages,
       consensusReached: session.consensusReached,
       createdAt: session.createdAt,
