@@ -19,11 +19,16 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for frontend communication
-  app.enableCors();
-
   // Get ConfigService from the application context
   const configService = app.get(ConfigService);
+
+  // Enable CORS for frontend communication and WebSocket support
+  const corsOrigins = configService.get<string>('WS_CORS_ORIGINS', '*').split(',');
+  app.enableCors({
+    origin: corsOrigins.includes('*') ? true : corsOrigins,
+    credentials: true,
+  });
+
   const port = configService.get<number>('PORT', 3000);
 
   await app.listen(port, '0.0.0.0');

@@ -55,7 +55,15 @@ export class CouncilService {
    * @param content - The intervention message content
    * @param userId - Optional user ID
    */
-  queueIntervention(sessionId: string, content: string, userId?: string): void {
+  async queueIntervention(sessionId: string, content: string, userId?: string): Promise<void> {
+    // Verify session status before queuing
+    const session = await this.sessionService.findOne(sessionId);
+
+    if (session.status !== SessionStatus.ACTIVE) {
+      this.logger.warn(`Cannot queue intervention for session ${sessionId}: session status is ${session.status}`);
+      return;
+    }
+
     if (!this.interventionQueues.has(sessionId)) {
       this.interventionQueues.set(sessionId, []);
     }
@@ -84,7 +92,7 @@ export class CouncilService {
           sessionId,
           content: intervention.content,
           role: MessageRole.USER,
-          // Note: isIntervention flag would need to be added to CreateMessageDto if needed
+          isIntervention: true,
         });
 
         // Emit message created event
@@ -454,6 +462,12 @@ You are participating in a collaborative discussion with other experts. Work tow
         `Error concluding session ${sessionId}: ${error.message}`,
         error.stack,
       );
+
+      // Emit ERROR event
+      this.eventEmitter.emit(DISCUSSION_EVENTS.ERROR, {
+        sessionId,
+        error: error.message,
+      } as DiscussionErrorEvent);
     }
   }
 }

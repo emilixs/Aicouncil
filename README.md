@@ -536,6 +536,443 @@ Phase 2 will add:
 
 The event infrastructure is fully implemented and ready for Phase 2 integration.
 
+## Real-Time Discussion Streaming (WebSocket) - Phase 2
+
+### Overview
+
+The AI Council now supports real-time WebSocket connections for live discussion streaming. Multiple clients can connect to the same session simultaneously and receive real-time updates as the discussion progresses.
+
+**Key Features:**
+- **Real-time streaming**: Receive live updates as experts take turns and generate messages
+- **Multiple watchers**: Multiple clients can watch the same session simultaneously
+- **User interventions**: Inject messages during discussions via WebSocket
+- **Room-based isolation**: Each session has its own isolated room for event broadcasting
+- **JWT authentication**: Secure WebSocket connections using session tokens
+- **REST compatibility**: REST endpoint (`POST /sessions/:id/start`) continues to work alongside WebSocket
+
+**WebSocket Namespace:** `/discussion`
+
+### Authentication
+
+WebSocket connections require a JWT token obtained from the token generation endpoint:
+
+**Get Token:**
+```bash
+curl -X POST http://localhost:3000/sessions/abc123-def456-ghi789/token \
+  -H "Content-Type: application/json" \
+  -d '{"userId": "user-123"}'
+```
+
+**Response:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "sessionId": "abc123-def456-ghi789"
+}
+```
+
+Pass this token when connecting to the WebSocket:
+
+**Socket.IO Client:**
+```typescript
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:3000/discussion', {
+  auth: {
+    token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  },
+  withCredentials: true
+});
+```
+
+**Alternative (Authorization Header):**
+```typescript
+const socket = io('http://localhost:3000/discussion', {
+  extraHeaders: {
+    Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  },
+  withCredentials: true
+});
+```
+
+### Connecting to a Session
+
+When you connect with a valid token, you are automatically joined to the session room:
+
+```typescript
+socket.on('connected', (data) => {
+  console.log('Connected to session:', data.sessionId);
+  // Output: Connected to session: abc123-def456-ghi789
+});
+```
+
+### Client Events (Emit to Server)
+
+#### start-discussion
+Start the discussion for the session.
+
+```typescript
+socket.emit('start-discussion', {
+  sessionId: 'abc123-def456-ghi789'
+});
+```
+
+**Response:** Server emits `discussion-started` to all clients in the session room.
+
+#### intervention
+Queue a user intervention to be processed before the next expert turn.
+
+```typescript
+socket.emit('intervention', {
+  sessionId: 'abc123-def456-ghi789',
+  content: 'Have you considered using Redis for caching?'
+});
+```
+
+**Response:** Server emits `intervention-queued` to the client.
+
+#### leave-session
+Leave the session room (stop receiving updates).
+
+```typescript
+socket.emit('leave-session', {
+  sessionId: 'abc123-def456-ghi789'
+});
+```
+
+**Response:** Server emits `left-session` to the client.
+
+### Server Events (Listen from Server)
+
+#### connected
+Emitted when client successfully connects and joins session room.
+
+```typescript
+socket.on('connected', (data) => {
+  console.log('Connected to session:', data.sessionId);
+});
+```
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+}
+```
+
+#### discussion-started
+Emitted when discussion starts (after `start-discussion` event).
+
+```typescript
+socket.on('discussion-started', (data) => {
+  console.log('Discussion started for session:', data.sessionId);
+});
+```
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+}
+```
+
+#### expert-turn-start
+Emitted when an expert's turn begins.
+
+```typescript
+socket.on('expert-turn-start', (data) => {
+  console.log(`${data.expertName} is thinking... (Turn ${data.turnNumber})`);
+});
+```
+
+**Payload:**
+```typescript
+{
+  expertName: string;
+  turnNumber: number;
+}
+```
+
+#### message
+Emitted when a new message is created (expert response or user intervention).
+
+```typescript
+socket.on('message', (message) => {
+  console.log(`[${message.expertName}]: ${message.content}`);
+});
+```
+
+**Payload:** Full `MessageResponseDto` object:
+```typescript
+{
+  id: string;
+  sessionId: string;
+  expertId: string;
+  expertName: string;
+  expertSpecialty: string;
+  content: string;
+  timestamp: string;
+  isIntervention: boolean;
+}
+```
+
+#### consensus-reached
+Emitted when consensus is detected in an expert's response.
+
+```typescript
+socket.on('consensus-reached', (data) => {
+  console.log('Consensus reached!');
+  console.log('Final message:', data.finalMessage.content);
+});
+```
+
+**Payload:**
+```typescript
+{
+  finalMessage: MessageResponseDto;
+}
+```
+
+#### session-ended
+Emitted when the discussion session concludes.
+
+```typescript
+socket.on('session-ended', (data) => {
+  console.log(`Session ended: ${data.reason}`);
+  console.log(`Consensus reached: ${data.consensusReached}`);
+  console.log(`Total messages: ${data.messageCount}`);
+});
+```
+
+**Payload:**
+```typescript
+{
+  reason: 'consensus' | 'max_messages' | 'cancelled';
+  consensusReached: boolean;
+  messageCount: number;
+}
+```
+
+#### error
+Emitted when an error occurs during discussion.
+
+```typescript
+socket.on('error', (data) => {
+  console.error('Error:', data.error);
+  if (data.expertId) {
+    console.error('Expert ID:', data.expertId);
+  }
+});
+```
+
+**Payload:**
+```typescript
+{
+  error: string;
+  expertId?: string; // Present if error occurred during specific expert's turn
+}
+```
+
+#### intervention-queued
+Emitted to the client after successfully queuing an intervention.
+
+```typescript
+socket.on('intervention-queued', (data) => {
+  console.log('Intervention queued for session:', data.sessionId);
+});
+```
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+}
+```
+
+#### left-session
+Emitted to the client after successfully leaving a session.
+
+```typescript
+socket.on('left-session', (data) => {
+  console.log('Left session:', data.sessionId);
+});
+```
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+}
+```
+
+### Complete Example
+
+Here's a complete TypeScript example showing how to connect, start a discussion, and handle events:
+
+```typescript
+import { io } from 'socket.io-client';
+
+async function watchDiscussion(sessionId: string) {
+  // 1. Get authentication token
+  const tokenResponse = await fetch(`http://localhost:3000/sessions/${sessionId}/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: 'user-123' })
+  });
+  const { token } = await tokenResponse.json();
+
+  // 2. Connect to WebSocket
+  const socket = io('http://localhost:3000/discussion', {
+    auth: { token },
+    withCredentials: true
+  });
+
+  // 3. Set up event listeners
+  socket.on('connected', (data) => {
+    console.log('✓ Connected to session:', data.sessionId);
+
+    // Start the discussion
+    socket.emit('start-discussion', { sessionId });
+  });
+
+  socket.on('discussion-started', () => {
+    console.log('✓ Discussion started');
+  });
+
+  socket.on('expert-turn-start', (data) => {
+    console.log(`\n🤔 ${data.expertName} is thinking... (Turn ${data.turnNumber})`);
+  });
+
+  socket.on('message', (message) => {
+    const prefix = message.isIntervention ? '👤 USER' : `🤖 ${message.expertName}`;
+    console.log(`\n${prefix}:`);
+    console.log(message.content);
+  });
+
+  socket.on('consensus-reached', (data) => {
+    console.log('\n✓ Consensus reached!');
+  });
+
+  socket.on('session-ended', (data) => {
+    console.log(`\n✓ Session ended: ${data.reason}`);
+    console.log(`  Consensus: ${data.consensusReached}`);
+    console.log(`  Messages: ${data.messageCount}`);
+    socket.disconnect();
+  });
+
+  socket.on('error', (data) => {
+    console.error('\n✗ Error:', data.error);
+  });
+
+  // 4. Send intervention after 10 seconds (example)
+  setTimeout(() => {
+    socket.emit('intervention', {
+      sessionId,
+      content: 'Have you considered using Redis for caching?'
+    });
+  }, 10000);
+
+  socket.on('intervention-queued', () => {
+    console.log('✓ Your intervention has been queued');
+  });
+}
+
+// Usage
+watchDiscussion('abc123-def456-ghi789');
+```
+
+### User Interventions
+
+Users can inject messages during discussions using the `intervention` event:
+
+**How It Works:**
+1. Client emits `intervention` event with session ID and content
+2. Server validates the request and queues the intervention
+3. Intervention is processed before the next expert turn
+4. A USER role message is created with `isIntervention: true`
+5. The intervention appears in the conversation context for subsequent expert turns
+6. All clients in the session room receive the intervention via `message` event
+
+**Example:**
+```typescript
+// Send intervention
+socket.emit('intervention', {
+  sessionId: 'abc123-def456-ghi789',
+  content: 'What about security considerations for this approach?'
+});
+
+// Receive confirmation
+socket.on('intervention-queued', (data) => {
+  console.log('Intervention queued');
+});
+
+// Receive the intervention as a message
+socket.on('message', (message) => {
+  if (message.isIntervention) {
+    console.log('USER intervention:', message.content);
+  }
+});
+```
+
+**Validation:**
+- Session ID must match the authenticated client's session
+- Content must be a non-empty string
+- Interventions are queued and processed in order
+
+### Configuration
+
+WebSocket functionality requires the following environment variables:
+
+**Required:**
+```env
+# JWT secret for signing session tokens
+JWT_SECRET=your-secret-key-here
+```
+
+**Optional:**
+```env
+# Token expiration time (default: 7d)
+JWT_EXPIRES_IN=7d
+
+# CORS origins for WebSocket connections (comma-separated, default: *)
+WS_CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+**Example `.env`:**
+```env
+JWT_SECRET=my-super-secret-jwt-key-change-in-production
+JWT_EXPIRES_IN=7d
+WS_CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+### Architecture
+
+**Room-Based Isolation:**
+- Each session has its own Socket.IO room: `session:${sessionId}`
+- Clients are automatically joined to their session room upon connection
+- Events are broadcast only to clients in the same room
+- Multiple clients can watch the same session simultaneously
+
+**Event Flow:**
+1. CouncilService emits events during discussion (Phase 1)
+2. DiscussionGateway listens to these events via EventEmitter2
+3. Gateway broadcasts events to the appropriate session room
+4. All connected clients in the room receive the events
+
+**Gateway Responsibilities:**
+- Authenticate WebSocket connections using JWT middleware
+- Auto-join clients to session rooms based on token payload
+- Subscribe to CouncilService events and broadcast to rooms
+- Handle client events (start-discussion, intervention, leave-session)
+- Track active subscriptions and cleanup on disconnect
+
+**Multiple Watchers:**
+The system supports multiple clients watching the same session:
+- All clients receive the same events simultaneously
+- Each client can send interventions independently
+- Room-based broadcasting ensures efficient message delivery
+- No limit on number of concurrent watchers per session
+
 ### Viewing Discussion Results
 
 After the discussion concludes, retrieve the results:

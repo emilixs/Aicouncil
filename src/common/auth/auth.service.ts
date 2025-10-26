@@ -13,12 +13,15 @@ export class AuthService {
   private readonly jwtExpiresIn: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.jwtSecret = this.configService.get<string>('JWT_SECRET') || 'default-secret-change-in-production';
-    this.jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '7d';
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
 
-    if (!this.configService.get<string>('JWT_SECRET')) {
-      this.logger.warn('JWT_SECRET not configured. Using default (insecure for production)');
+    if (!jwtSecret || jwtSecret.trim() === '') {
+      this.logger.error('JWT_SECRET is not configured. Service cannot start without a valid JWT_SECRET.');
+      throw new Error('JWT_SECRET environment variable is required for AuthService');
     }
+
+    this.jwtSecret = jwtSecret;
+    this.jwtExpiresIn = this.configService.get<string>('JWT_EXPIRES_IN') || '7d';
   }
 
   /**
