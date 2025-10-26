@@ -54,24 +54,31 @@ export class CouncilService {
    * @param sessionId - The session ID
    * @param content - The intervention message content
    * @param userId - Optional user ID
+   * @returns true if intervention was queued, false if session is not ACTIVE or on failure
    */
-  async queueIntervention(sessionId: string, content: string, userId?: string): Promise<void> {
-    // Verify session status before queuing
-    const session = await this.sessionService.findOne(sessionId);
+  async queueIntervention(sessionId: string, content: string, userId?: string): Promise<boolean> {
+    try {
+      // Verify session status before queuing
+      const session = await this.sessionService.findOne(sessionId);
 
-    if (session.status !== SessionStatus.ACTIVE) {
-      this.logger.warn(`Cannot queue intervention for session ${sessionId}: session status is ${session.status}`);
-      return;
-    }
+      if (session.status !== SessionStatus.ACTIVE) {
+        this.logger.warn(`Cannot queue intervention for session ${sessionId}: session status is ${session.status}`);
+        return false;
+      }
 
-    if (!this.interventionQueues.has(sessionId)) {
-      this.interventionQueues.set(sessionId, []);
+      if (!this.interventionQueues.has(sessionId)) {
+        this.interventionQueues.set(sessionId, []);
+      }
+      const queue = this.interventionQueues.get(sessionId);
+      if (queue) {
+        queue.push({ content, userId });
+      }
+      this.logger.log(`Queued intervention for session ${sessionId}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to queue intervention for session ${sessionId}:`, error);
+      return false;
     }
-    const queue = this.interventionQueues.get(sessionId);
-    if (queue) {
-      queue.push({ content, userId });
-    }
-    this.logger.log(`Queued intervention for session ${sessionId}`);
   }
 
   /**

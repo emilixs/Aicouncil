@@ -13,15 +13,14 @@ import { UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CouncilService } from '../council.service';
-import { SessionService } from '../../session/session.service';
 import { AuthService } from '../../common/auth/auth.service';
 import { WsAuthGuard } from '../../common/auth/ws-auth.guard';
 import {
   DISCUSSION_EVENTS,
-  MessageCreatedEvent,
-  ConsensusReachedEvent,
-  SessionEndedEvent,
-  ErrorEvent,
+  DiscussionMessageEvent,
+  DiscussionConsensusEvent,
+  DiscussionEndedEvent,
+  DiscussionErrorEvent,
   ExpertTurnStartEvent,
 } from '../events/discussion.events';
 
@@ -51,7 +50,6 @@ export class DiscussionGateway
 
   constructor(
     private readonly councilService: CouncilService,
-    private readonly sessionService: SessionService,
     private readonly authService: AuthService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -61,9 +59,18 @@ export class DiscussionGateway
     server.use(async (socket: AuthenticatedSocket, next) => {
       try {
         // Extract token from auth field or Authorization header
-        const token =
-          socket.handshake.auth?.token ||
-          socket.handshake.headers?.authorization?.replace('Bearer ', '');
+        let token = socket.handshake.auth?.token;
+
+        // Fallback to Authorization header if token not in auth
+        if (!token && socket.handshake.headers?.authorization) {
+          const authHeader = socket.handshake.headers.authorization;
+          const parts = authHeader.split(/\s+/);
+
+          // Check if scheme is 'bearer' (case-insensitive)
+          if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
+            token = parts[1];
+          }
+        }
 
         if (!token) {
           return next(new Error('Unauthorized: No token provided'));
@@ -142,7 +149,7 @@ export class DiscussionGateway
 
     this.eventEmitter.on(
       DISCUSSION_EVENTS.MESSAGE_CREATED,
-      (event: MessageCreatedEvent) => {
+      (event: DiscussionMessageEvent) => {
         const roomName = `session:${event.sessionId}`;
         this.server.to(roomName).emit('message', event.message);
       },
@@ -150,7 +157,7 @@ export class DiscussionGateway
 
     this.eventEmitter.on(
       DISCUSSION_EVENTS.CONSENSUS_REACHED,
-      (event: ConsensusReachedEvent) => {
+      (event: DiscussionConsensusEvent) => {
         const roomName = `session:${event.sessionId}`;
         this.server.to(roomName).emit('consensus-reached', {
           finalMessage: event.finalMessage,
@@ -160,7 +167,7 @@ export class DiscussionGateway
 
     this.eventEmitter.on(
       DISCUSSION_EVENTS.SESSION_ENDED,
-      (event: SessionEndedEvent) => {
+      (event: DiscussionEndedEvent) => {
         const roomName = `session:${event.sessionId}`;
         this.server.to(roomName).emit('session-ended', {
           reason: event.reason,
@@ -170,7 +177,7 @@ export class DiscussionGateway
       },
     );
 
-    this.eventEmitter.on(DISCUSSION_EVENTS.ERROR, (event: ErrorEvent) => {
+    this.eventEmitter.on(DISCUSSION_EVENTS.ERROR, (event: DiscussionErrorEvent) => {
       const roomName = `session:${event.sessionId}`;
       this.server.to(roomName).emit('error', {
         error: event.error,
@@ -183,6 +190,8 @@ export class DiscussionGateway
       (event: ExpertTurnStartEvent) => {
         const roomName = `session:${event.sessionId}`;
         this.server.to(roomName).emit('expert-turn-start', {
+          sessionId: event.sessionId,
+          expertId: event.expertId,
           expertName: event.expertName,
           turnNumber: event.turnNumber,
         });
@@ -257,7 +266,15 @@ export class DiscussionGateway
       }
 
       // Queue intervention
-      await this.councilService.queueIntervention(sessionId, content, userId);
+      const queued = await this.councilService.queueIntervention(sessionId, content, userId);
+
+      if (!queued) {
+        // Intervention was rejected (session not ACTIVE or failure)
+        client.emit('error', {
+          error: 'Intervention rejected: session not ACTIVE or failed to queue',
+        });
+        return;
+      }
 
       // Emit intervention-queued to client
       client.emit('intervention-queued', { sessionId });
@@ -265,6 +282,44 @@ export class DiscussionGateway
       console.error('Error in handleIntervention:', error);
       client.emit('error', {
         error: error.message || 'Failed to queue intervention',
+      });
+    }
+  }
+
+  @SubscribeMessage('join-session')
+  @UseGuards(WsAuthGuard)
+  async handleJoinSession(
+    @MessageBody() data: { sessionId: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    try {
+      const { sessionId } = data;
+      const userSessionId = client.data.user?.sessionId;
+
+      // Validate sessionId matches client session
+      if (sessionId !== userSessionId) {
+        client.emit('error', {
+          error: 'Session ID mismatch',
+        });
+        return;
+      }
+
+      // Join room (idempotent)
+      const roomName = `session:${sessionId}`;
+      client.join(roomName);
+
+      // Update tracking
+      if (!this.sessionSubscriptions.has(sessionId)) {
+        this.sessionSubscriptions.set(sessionId, new Set());
+      }
+      this.sessionSubscriptions.get(sessionId).add(client.id);
+
+      // Emit joined-session acknowledgment to client
+      client.emit('joined-session', { sessionId });
+    } catch (error) {
+      console.error('Error in handleJoinSession:', error);
+      client.emit('error', {
+        error: error.message || 'Failed to join session',
       });
     }
   }
