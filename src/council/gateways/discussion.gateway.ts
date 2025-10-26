@@ -5,11 +5,10 @@ import {
   OnGatewayInit,
   OnGatewayConnection,
   OnGatewayDisconnect,
-  OnModuleInit,
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, OnModuleInit } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CouncilService } from '../council.service';
@@ -85,8 +84,8 @@ export class DiscussionGateway
 
         // Store user data in socket
         socket.data.user = {
-          sessionId: payload.sessionId,
-          userId: payload.userId,
+          sessionId: payload.sessionId || '',
+          userId: payload.userId || '',
         };
 
         next();
@@ -98,6 +97,12 @@ export class DiscussionGateway
 
   handleConnection(client: AuthenticatedSocket) {
     try {
+      if (!client.data.user) {
+        console.error('Client connected without user data');
+        client.disconnect();
+        return;
+      }
+
       const { sessionId, userId } = client.data.user;
 
       // Auto-join client to session room
@@ -108,7 +113,10 @@ export class DiscussionGateway
       if (!this.sessionSubscriptions.has(sessionId)) {
         this.sessionSubscriptions.set(sessionId, new Set());
       }
-      this.sessionSubscriptions.get(sessionId).add(client.id);
+      const subscriptions = this.sessionSubscriptions.get(sessionId);
+      if (subscriptions) {
+        subscriptions.add(client.id);
+      }
 
       console.log(
         `Client ${client.id} (user: ${userId}) connected to session ${sessionId}`,
@@ -246,6 +254,11 @@ export class DiscussionGateway
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     try {
+      if (!client.data.user) {
+        client.emit('error', { error: 'Unauthorized' });
+        return;
+      }
+
       const { sessionId, content } = data;
       const { sessionId: userSessionId, userId } = client.data.user;
 
@@ -312,7 +325,10 @@ export class DiscussionGateway
       if (!this.sessionSubscriptions.has(sessionId)) {
         this.sessionSubscriptions.set(sessionId, new Set());
       }
-      this.sessionSubscriptions.get(sessionId).add(client.id);
+      const subscriptions = this.sessionSubscriptions.get(sessionId);
+      if (subscriptions) {
+        subscriptions.add(client.id);
+      }
 
       // Emit joined-session acknowledgment to client
       client.emit('joined-session', { sessionId });
