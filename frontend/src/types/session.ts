@@ -21,12 +21,14 @@ export interface CreateSessionDto {
 export interface SessionResponse {
   id: string;
   problemStatement: string;
-  status: SessionStatus;
+  status?: SessionStatus;
+  statusDisplay?: string;
   maxMessages: number;
   consensusReached: boolean;
   createdAt: string;
   updatedAt: string;
   experts: ExpertResponse[];
+  messageCount?: number;
 }
 
 export interface MessageResponse {

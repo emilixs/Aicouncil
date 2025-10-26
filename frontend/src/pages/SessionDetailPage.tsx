@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getSession, getSessionMessages } from "@/lib/api/sessions";
 import { useWebSocket } from "@/hooks/use-websocket";
-import { SessionResponse, MessageResponse } from "@/types";
+import { SessionResponse, MessageResponse, SessionStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +23,21 @@ export default function SessionDetailPage() {
   const [initialMessages, setInitialMessages] = useState<MessageResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Map statusDisplay to SessionStatus enum
+  const mapStatusDisplay = (statusDisplay?: string): SessionStatus => {
+    switch (statusDisplay?.toLowerCase()) {
+      case "pending":
+        return SessionStatus.PENDING;
+      case "active":
+        return SessionStatus.ACTIVE;
+      case "concluded":
+      case "completed":
+        return SessionStatus.COMPLETED;
+      default:
+        return SessionStatus.PENDING;
+    }
+  };
 
   const {
     isConnected,
@@ -185,7 +200,7 @@ export default function SessionDetailPage() {
 
           <InterventionPanel
             onSendIntervention={sendIntervention}
-            disabled={!isDiscussionActive || session.status === "COMPLETED"}
+            disabled={!isDiscussionActive || (session.status || mapStatusDisplay(session.statusDisplay)) === SessionStatus.COMPLETED}
             isConnected={isConnected}
           />
         </div>

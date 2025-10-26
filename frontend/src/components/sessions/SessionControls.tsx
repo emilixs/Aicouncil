@@ -49,6 +49,23 @@ export function SessionControls({
   onPauseDiscussion,
   onStopDiscussion,
 }: SessionControlsProps) {
+  // Map statusDisplay to SessionStatus enum
+  const mapStatusDisplay = (statusDisplay?: string): SessionStatus => {
+    switch (statusDisplay?.toLowerCase()) {
+      case "pending":
+        return SessionStatus.PENDING;
+      case "active":
+        return SessionStatus.ACTIVE;
+      case "concluded":
+      case "completed":
+        return SessionStatus.COMPLETED;
+      default:
+        return session.status || SessionStatus.PENDING;
+    }
+  };
+
+  const sessionStatus = session.status || mapStatusDisplay(session.statusDisplay);
+
   const statusColor = {
     [SessionStatus.PENDING]: "bg-yellow-100 text-yellow-800",
     [SessionStatus.ACTIVE]: "bg-blue-100 text-blue-800",
@@ -71,9 +88,9 @@ export function SessionControls({
             <CardTitle>Session Details</CardTitle>
             <CardDescription>Monitor and control the discussion</CardDescription>
           </div>
-          <Badge className={statusColor[session.status]}>
-            {statusIcon[session.status]}
-            <span className="ml-1">{session.status}</span>
+          <Badge className={statusColor[sessionStatus]}>
+            {statusIcon[sessionStatus]}
+            <span className="ml-1">{sessionStatus}</span>
           </Badge>
         </div>
       </CardHeader>
@@ -169,7 +186,7 @@ export function SessionControls({
       </CardContent>
 
       <CardFooter className="flex gap-2">
-        {session.status === SessionStatus.PENDING && (
+        {sessionStatus === SessionStatus.PENDING && (
           <Button
             onClick={onStartDiscussion}
             disabled={!isConnected}
@@ -180,7 +197,7 @@ export function SessionControls({
           </Button>
         )}
 
-        {session.status === SessionStatus.ACTIVE && (
+        {sessionStatus === SessionStatus.ACTIVE && (
           <>
             <Button
               onClick={onPauseDiscussion}
@@ -203,7 +220,7 @@ export function SessionControls({
           </>
         )}
 
-        {session.status === SessionStatus.COMPLETED && (
+        {sessionStatus === SessionStatus.COMPLETED && (
           <Button disabled className="w-full" variant="outline">
             <CheckCircle2 className="h-4 w-4 mr-2" />
             Discussion Completed

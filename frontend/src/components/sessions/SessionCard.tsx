@@ -18,6 +18,23 @@ interface SessionCardProps {
 }
 
 export function SessionCard({ session, onViewSession }: SessionCardProps) {
+  // Map statusDisplay to SessionStatus enum
+  const mapStatusDisplay = (statusDisplay?: string): SessionStatus => {
+    switch (statusDisplay?.toLowerCase()) {
+      case "pending":
+        return SessionStatus.PENDING;
+      case "active":
+        return SessionStatus.ACTIVE;
+      case "concluded":
+      case "completed":
+        return SessionStatus.COMPLETED;
+      default:
+        return session.status || SessionStatus.PENDING;
+    }
+  };
+
+  const sessionStatus = session.status || mapStatusDisplay(session.statusDisplay);
+
   const statusConfig = {
     [SessionStatus.PENDING]: {
       color: "bg-yellow-100 text-yellow-800 border-yellow-300",
@@ -36,12 +53,21 @@ export function SessionCard({ session, onViewSession }: SessionCardProps) {
     },
   };
 
-  const config = statusConfig[session.status];
+  // Fallback config in case status is undefined
+  const defaultConfig = {
+    color: "bg-gray-100 text-gray-800 border-gray-300",
+    icon: <Clock className="h-4 w-4" />,
+    label: "Unknown",
+  };
+
+  const config = statusConfig[sessionStatus] || defaultConfig;
   const borderColor = {
     [SessionStatus.PENDING]: "border-yellow-300 hover:border-yellow-400",
     [SessionStatus.ACTIVE]: "border-blue-300 hover:border-blue-400",
     [SessionStatus.COMPLETED]: "border-green-300 hover:border-green-400",
   };
+
+  const borderColorClass = borderColor[sessionStatus] || "border-gray-300 hover:border-gray-400";
 
   const truncatedProblem =
     session.problemStatement.length > 100
@@ -53,7 +79,7 @@ export function SessionCard({ session, onViewSession }: SessionCardProps) {
 
   return (
     <Card
-      className={`cursor-pointer transition-all hover:shadow-lg border-2 ${borderColor[session.status]}`}
+      className={`cursor-pointer transition-all hover:shadow-lg border-2 ${borderColorClass}`}
       onClick={() => onViewSession(session.id)}
     >
       <CardHeader>
