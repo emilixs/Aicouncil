@@ -176,6 +176,172 @@ VITE_WS_URL=http://localhost:3000
 VITE_WS_NAMESPACE=/discussion
 ```
 
+## Session Management & Real-Time Discussions
+
+### Overview
+
+The session management system enables users to create discussion sessions with selected experts and monitor real-time conversations. The system uses WebSocket connections for live updates and supports user interventions during discussions.
+
+**Workflow:**
+1. User creates a session with problem statement and expert selection
+2. Session is created in PENDING state
+3. User starts discussion, triggering expert turns
+4. Experts exchange messages in real-time via WebSocket
+5. User can send interventions to guide discussion
+6. System detects consensus and ends session
+
+### Creating Sessions
+
+**SessionForm Component** (`src/components/sessions/SessionForm.tsx`):
+- Problem statement input (10-2000 characters)
+- Expert multi-select with specialty badges
+- Max messages configuration (5-200)
+- Form validation using Zod schema
+
+**Validation Schema** (`src/lib/validations/session.ts`):
+```typescript
+sessionFormSchema = {
+  problemStatement: string (min 10, max 2000),
+  expertIds: string[] (min 2, max 10),
+  maxMessages: number (min 5, max 200, default 30)
+}
+```
+
+### Session List
+
+**SessionsPage** (`src/pages/SessionsPage.tsx`):
+- Grid display of all sessions
+- Status badges (PENDING, ACTIVE, COMPLETED)
+- Quick expert preview (max 3 + count)
+- Consensus indicator
+- Create new session button
+- Refresh functionality
+
+**SessionCard Component** (`src/components/sessions/SessionCard.tsx`):
+- Truncated problem statement (100 chars)
+- Status with color coding and animation
+- Expert list with specialty badges
+- Message count and consensus status
+- Hover effects and click navigation
+
+### Real-Time Discussion
+
+**SessionDetailPage** (`src/pages/SessionDetailPage.tsx`):
+- Two-column layout (messages + controls)
+- Real-time message streaming
+- Session status monitoring
+- Expert details sidebar
+- Connection status indicators
+
+**Message Display:**
+- MessageList component with auto-scroll
+- MessageItem with role-based styling
+- Intervention messages highlighted in blue
+- Consensus messages highlighted in green
+- System messages in gray
+- Timestamps with smart formatting (today/yesterday/date)
+
+### User Interventions
+
+**InterventionPanel Component** (`src/components/sessions/InterventionPanel.tsx`):
+- Textarea for intervention content
+- Character counter (max 1000)
+- Connection status indicator
+- Send button with loading state
+- Error handling and display
+- Disabled when discussion inactive or disconnected
+
+**Intervention Flow:**
+1. User types message in InterventionPanel
+2. Clicks "Send Intervention"
+3. Message sent via WebSocket `intervention` event
+4. Backend queues intervention
+5. System acknowledges with `intervention-queued` event
+6. Message appears in discussion when processed
+
+### WebSocket Integration
+
+**useWebSocket Hook** (`src/hooks/use-websocket.ts`):
+
+State management:
+- `socket` - Socket.IO instance
+- `isConnected` - Connection status
+- `error` - Error messages
+- `messages` - All discussion messages
+- `consensusReached` - Consensus flag
+- `isDiscussionActive` - Discussion status
+- `currentExpertTurn` - Current expert ID
+
+Events handled:
+- `connect` - Connection established
+- `disconnect` - Connection lost
+- `message` - New message received
+- `expert-turn-start` - Expert turn started
+- `discussion-started` - Discussion began
+- `consensus-reached` - Consensus detected
+- `session-ended` - Session completed
+- `intervention-queued` - Intervention queued
+- `error` - Error occurred
+
+Methods:
+- `startDiscussion()` - Emit `start-discussion` event
+- `sendIntervention(content)` - Emit `intervention` event with content
+- `disconnect()` - Close WebSocket connection
+
+**JWT Authentication:**
+```typescript
+// 1. Fetch session token
+const { token } = await getSessionToken(sessionId);
+
+// 2. Create socket with token in auth
+const socket = createSocketConnection(token);
+
+// 3. Connect to /discussion namespace
+socket.connect();
+```
+
+### Session States
+
+- **PENDING** - Session created, awaiting start
+- **ACTIVE** - Discussion in progress
+- **COMPLETED** - Discussion ended (consensus or max messages reached)
+
+### Consensus Detection
+
+The system detects consensus when experts reach agreement:
+- Visual indicator in SessionControls
+- Green alert in MessageList
+- Consensus message added to discussion
+- Session transitions to COMPLETED state
+
+### Components
+
+Key components for session management:
+
+| Component | Purpose |
+|-----------|---------|
+| SessionForm | Create session form with validation |
+| SessionFormDialog | Dialog wrapper for SessionForm |
+| SessionsPage | List all sessions |
+| SessionCard | Individual session card |
+| SessionDetailPage | Session detail view with real-time updates |
+| MessageList | Display discussion messages |
+| MessageItem | Individual message display |
+| InterventionPanel | Send user interventions |
+| SessionControls | Session status and controls |
+| useWebSocket | WebSocket connection and event handling |
+
+### Best Practices
+
+1. **Error Handling** - Always handle WebSocket errors and display to user
+2. **Connection Status** - Show connection status in UI
+3. **Auto-scroll** - Messages auto-scroll to bottom on new messages
+4. **Cleanup** - Disconnect WebSocket on component unmount
+5. **Validation** - Validate form inputs before submission
+6. **Loading States** - Show loading indicators during async operations
+7. **Timestamps** - Use smart timestamp formatting for better UX
+8. **Accessibility** - Use semantic HTML and ARIA labels
+
 ## Next Steps
 
 The current implementation provides the foundation and placeholder pages. Subsequent phases will implement:

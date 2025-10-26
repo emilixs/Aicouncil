@@ -3,6 +3,7 @@ import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import ExpertsPage from './pages/ExpertsPage';
 import SessionsPage from './pages/SessionsPage';
+import SessionDetailPage from './pages/SessionDetailPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -14,6 +15,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/experts" element={<ExpertsPage />} />
           <Route path="/sessions" element={<SessionsPage />} />
+          <Route path="/sessions/:id" element={<SessionDetailPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
