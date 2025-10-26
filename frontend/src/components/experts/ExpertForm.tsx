@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+
 
 interface ExpertFormProps {
   expert?: ExpertResponse;
@@ -33,10 +33,10 @@ interface ExpertFormProps {
 
 export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<ExpertFormValues>({
     resolver: zodResolver(expertFormSchema),
+    mode: 'onChange',
     defaultValues: expert
       ? {
           name: expert.name,
@@ -57,7 +57,6 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
   const watchedDriverType = form.watch("driverType");
 
   const onSubmit = async (values: ExpertFormValues) => {
-    setIsSubmitting(true);
     try {
       if (expert) {
         await updateExpert(expert.id, values);
@@ -79,8 +78,6 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
         description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -141,11 +138,11 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
               <FormLabel>Driver Type</FormLabel>
               <Select
                 onValueChange={(value) => {
-                  field.onChange(value);
                   const newDriverType = value as DriverType;
-                  form.setValue("config", DEFAULT_CONFIG[newDriverType]);
+                  form.setValue("driverType", newDriverType);
+                  form.setValue("config.model", DEFAULT_CONFIG[newDriverType].model, { shouldValidate: true });
                 }}
-                defaultValue={field.value}
+                value={field.value}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -168,7 +165,7 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Model</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select model" />
@@ -200,7 +197,13 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
                   min="0"
                   max="2"
                   {...field}
-                  onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                  onChange={(e) => {
+                    if (e.target.value === '') {
+                      field.onChange(undefined);
+                    } else {
+                      field.onChange(parseFloat(e.target.value));
+                    }
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -220,7 +223,13 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
                   step="1"
                   min="1"
                   {...field}
-                  onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  onChange={(e) => {
+                    if (e.target.value === '') {
+                      field.onChange(undefined);
+                    } else {
+                      field.onChange(parseInt(e.target.value));
+                    }
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -241,7 +250,39 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
                   min="0"
                   max="1"
                   {...field}
-                  onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                  onChange={(e) => {
+                    if (e.target.value === '') {
+                      field.onChange(undefined);
+                    } else {
+                      field.onChange(parseFloat(e.target.value));
+                    }
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="config.stop"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Stop Tokens (comma-separated)</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="e.g., END, STOP"
+                  value={field.value?.join(', ') || ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      field.onChange(undefined);
+                    } else {
+                      const tokens = value.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                      field.onChange(tokens.length > 0 ? tokens : undefined);
+                    }
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -253,8 +294,8 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : expert ? "Update" : "Create"}
+          <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isValid}>
+            {form.formState.isSubmitting ? "Saving..." : expert ? "Update" : "Create"}
           </Button>
         </div>
       </form>
