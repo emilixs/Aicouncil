@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum DriverType {
+  OPENAI
+  ANTHROPIC
+}
+
+model Expert {
+  id           String     @id @default(cuid())
+  name         String
+  specialty    String
+  systemPrompt String     @db.Text
+  driverType   DriverType
+  config       Json
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  sessions SessionExpert[]
+  messages Message[]
+
+  @@index([driverType])
+}
+
+model Session {
+  id               String        @id @default(cuid())
+  problemStatement String        @db.Text
+  status           SessionStatus @default(PENDING)
+  maxMessages      Int           @default(20)
+  consensusReached Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  experts  SessionExpert[]
+  messages Message[]
+
+  @@index([status])
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  sessionId      String
+  expertId       String?
+  content        String      @db.Text
+  role           MessageRole
+  isIntervention Boolean     @default(false)
+  timestamp      DateTime    @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  expert  Expert? @relation(fields: [expertId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId])
+  @@index([expertId])
+  @@index([timestamp])
+}
+
+model SessionExpert {
+  id        String   @id @default(cuid())
+  sessionId String
+  expertId  String
+  joinedAt  DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  expert  Expert  @relation(fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, expertId])
+  @@index([sessionId])
+  @@index([expertId])
+}
+
