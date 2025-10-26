@@ -4,6 +4,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SessionStatus, MessageRole } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { SessionService } from '../session/session.service';
 import { MessageService } from '../message/message.service';
 import { ExpertService } from '../expert/expert.service';
@@ -52,10 +54,15 @@ export class CouncilService {
       await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
       this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
 
-      // Retrieve full expert details
-      const experts: ExpertResponseDto[] = await Promise.all(
-        session.experts.map((expert) => this.expertService.findOne(expert.id)),
-      );
+      // Comment 5: Use experts directly from session (remove redundant re-fetching)
+      const experts = session.experts;
+
+      // Comment 1: Validate that session has experts
+      if (experts.length === 0) {
+        throw new BadRequestException(
+          'Cannot start discussion for session with no experts. Session must have at least one expert.',
+        );
+      }
 
       this.logger.log(`Starting discussion with ${experts.length} experts`);
 
@@ -91,8 +98,15 @@ export class CouncilService {
         // Create LLM driver for the expert
         const driver = this.driverFactory.createDriver(currentExpert.driverType);
 
-        // Parse expert config to LLMConfig
-        const expertConfig = currentExpert.config as unknown as LLMConfig;
+        // Comment 4: Safe LLMConfig transformation with validation
+        const expertConfig = plainToInstance(LLMConfig, currentExpert.config);
+        const validationErrors = await validate(expertConfig);
+
+        if (validationErrors.length > 0 || !expertConfig.model) {
+          throw new BadRequestException(
+            `Expert "${currentExpert.name}" (${currentExpert.id}) has invalid config. Missing or invalid required field: model`,
+          );
+        }
 
         // Get response from LLM
         const response = await driver.chat(contextMessages, expertConfig);
@@ -204,11 +218,12 @@ You are participating in a collaborative discussion with other experts. Work tow
 
   /**
    * Detect if consensus has been reached based on message content
-   * 
+   *
    * @param messageContent - The message content to analyze
    * @returns True if consensus keywords are detected
    */
   private detectConsensus(messageContent: string): boolean {
+    // Comment 2: Extended consensus detection keywords
     const keywords = [
       'i agree',
       'consensus reached',
@@ -216,16 +231,18 @@ You are participating in a collaborative discussion with other experts. Work tow
       'i concur',
       'agreed',
       'we have consensus',
+      'we reached consensus',
+      'in agreement',
     ];
 
     const contentLower = messageContent.toLowerCase();
-    
+
     return keywords.some((keyword) => contentLower.includes(keyword));
   }
 
   /**
    * Conclude a session by updating its status and consensus flag
-   * 
+   *
    * @param sessionId - The session ID to conclude
    * @param consensusReached - Whether consensus was reached
    */
@@ -243,11 +260,12 @@ You are participating in a collaborative discussion with other experts. Work tow
         `Session ${sessionId} concluded. Consensus: ${consensusReached}`,
       );
     } catch (error) {
+      // Comment 3: Handle gracefully - only log error, don't propagate
+      // This prevents transient DB failures from flipping completed discussions to CANCELLED
       this.logger.error(
         `Error concluding session ${sessionId}: ${error.message}`,
         error.stack,
       );
-      throw error;
     }
   }
 }
