@@ -391,6 +391,151 @@ The system prompt includes all experts' names and specialties, so experts can:
 
 This creates a more natural and collaborative discussion compared to isolated responses.
 
+## Event-Driven Discussion Architecture (Phase 1)
+
+### Overview
+
+The CouncilService now implements an event-driven architecture using EventEmitter2, emitting real-time events during discussions. This enables future WebSocket integration for live streaming of discussion progress to clients.
+
+**Current State (Phase 1):**
+- Events are emitted during discussions but have no listeners yet
+- REST endpoint continues to work synchronously as before
+- Event infrastructure is ready for Phase 2 WebSocket gateway implementation
+
+**Future State (Phase 2):**
+- WebSocket gateway will listen to these events
+- Clients can connect via WebSocket to receive real-time updates
+- Live streaming of expert turns, messages, and consensus detection
+
+### Event Types
+
+The system emits the following events during discussions:
+
+#### MESSAGE_CREATED
+Emitted when a new message is created (expert response or user intervention).
+
+**Event Name:** `discussion.message.created`
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+  message: MessageResponseDto; // Full message object with expert info
+}
+```
+
+#### EXPERT_TURN_START
+Emitted when an expert's turn begins.
+
+**Event Name:** `discussion.expert.turn.start`
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+  expertId: string;
+  expertName: string;
+  turnNumber: number;
+}
+```
+
+#### CONSENSUS_REACHED
+Emitted when consensus is detected in an expert's response.
+
+**Event Name:** `discussion.consensus.reached`
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+  consensusReached: boolean;
+  finalMessage: MessageResponseDto;
+}
+```
+
+#### SESSION_ENDED
+Emitted when a discussion session concludes.
+
+**Event Name:** `discussion.session.ended`
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+  consensusReached: boolean;
+  reason: 'consensus' | 'max_messages' | 'cancelled';
+  messageCount: number;
+}
+```
+
+#### ERROR
+Emitted when an error occurs during discussion.
+
+**Event Name:** `discussion.error`
+
+**Payload:**
+```typescript
+{
+  sessionId: string;
+  error: string;
+  expertId?: string; // Present if error occurred during specific expert's turn
+}
+```
+
+### User Interventions
+
+The system now supports queuing user interventions during discussions:
+
+**Method:** `CouncilService.queueIntervention(sessionId, content, userId?)`
+
+**Behavior:**
+- Interventions are queued and processed before the next expert turn
+- Creates a USER role message with the intervention content
+- Emits MESSAGE_CREATED event for the intervention
+- Interventions become part of the conversation context for subsequent expert turns
+
+**Note:** This is currently an internal API. Phase 2 will expose this via WebSocket for real-time user participation.
+
+### WebSocket Authentication
+
+To prepare for Phase 2 WebSocket connections, a token generation endpoint is available:
+
+**Endpoint:** `POST /sessions/:id/token`
+
+**Request Body (Optional):**
+```json
+{
+  "userId": "optional-user-id"
+}
+```
+
+**Response:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "sessionId": "abc123-def456-ghi789"
+}
+```
+
+**Token Configuration:**
+- Tokens are JWT-based and configured via environment variables
+- `JWT_SECRET`: Secret key for signing tokens (required)
+- `JWT_EXPIRES_IN`: Token expiration time (default: 7d)
+- Tokens contain sessionId and optional userId in the payload
+
+**Usage:**
+This token will be used in Phase 2 to authenticate WebSocket connections, ensuring only authorized clients can subscribe to session events.
+
+### Phase 2 Preview
+
+Phase 2 will add:
+- **DiscussionGateway**: WebSocket gateway listening to discussion events
+- **Real-time streaming**: Clients receive live updates as discussions progress
+- **User intervention endpoint**: WebSocket event for users to inject messages during discussions
+- **Connection management**: Automatic subscription to session-specific event channels
+
+The event infrastructure is fully implemented and ready for Phase 2 integration.
+
 ### Viewing Discussion Results
 
 After the discussion concludes, retrieve the results:

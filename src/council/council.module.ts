@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CouncilController } from './council.controller';
 import { CouncilService } from './council.service';
 import { SessionModule } from '../session/session.module';
@@ -16,12 +17,18 @@ import { LlmModule } from '../llm/llm.module';
  * - SessionModule: Session management and status transitions (includes expert data via session.experts)
  * - MessageModule: Message creation and retrieval
  * - LlmModule: LLM driver factory for generating expert responses
+ * - EventEmitterModule: Event-driven architecture for real-time updates
  *
  * Exports:
  * - CouncilService: Available for future WebSocket gateway to enable real-time streaming
  */
 @Module({
-  imports: [SessionModule, MessageModule, LlmModule],
+  imports: [
+    EventEmitterModule.forRoot(),
+    SessionModule,
+    MessageModule,
+    LlmModule,
+  ],
   controllers: [CouncilController],
   providers: [CouncilService],
   exports: [CouncilService],

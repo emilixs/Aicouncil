@@ -3,6 +3,7 @@ import { SessionService } from './session.service';
 import { CreateSessionDto, SessionResponseDto } from './dto';
 import { MessageService } from '../message/message.service';
 import { MessageResponseDto } from '../message/dto';
+import { AuthService } from '../common/auth/auth.service';
 
 /**
  * REST controller for session management endpoints.
@@ -14,6 +15,7 @@ export class SessionController {
   constructor(
     private readonly sessionService: SessionService,
     private readonly messageService: MessageService,
+    private readonly authService: AuthService,
   ) {}
 
   /**
@@ -57,6 +59,35 @@ export class SessionController {
     // Validate that session exists
     await this.sessionService.findOne(id);
     return this.messageService.findBySession(id);
+  }
+
+  /**
+   * Generate a JWT token for WebSocket authentication.
+   * This token can be used to authenticate WebSocket connections for real-time updates.
+   *
+   * @param id - Session ID
+   * @param body - Optional body containing userId
+   * @returns JWT token and session ID
+   */
+  @Post(':id/token')
+  @HttpCode(HttpStatus.OK)
+  async generateToken(
+    @Param('id') id: string,
+    @Body() body?: { userId?: string },
+  ): Promise<{ token: string; sessionId: string }> {
+    // Validate that session exists
+    await this.sessionService.findOne(id);
+
+    // Generate token
+    const token = this.authService.generateToken({
+      sessionId: id,
+      userId: body?.userId,
+    });
+
+    return {
+      token,
+      sessionId: id,
+    };
   }
 }
 
