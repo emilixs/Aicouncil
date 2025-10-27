@@ -102,8 +102,9 @@ All database schema changes must be made in `prisma/schema.prisma`. Follow this 
 
 The system supports multiple LLM providers through an extensible driver architecture. Currently supported providers include:
 
-- **OpenAI**: GPT models (GPT-4, GPT-4 Turbo, GPT-3.5 Turbo)
+- **OpenAI**: GPT models (GPT-4.1 family, reasoning models, GPT-4o family, and legacy models)
 - **Anthropic**: Claude models (Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Sonnet, Claude 3 Haiku)
+- **xAI (Grok)**: Grok models with large context windows and strong reasoning capabilities
 
 All drivers implement a common interface for both streaming and non-streaming chat completions. The system uses async generators for streaming, enabling real-time WebSocket integration in future phases.
 
@@ -111,13 +112,13 @@ All drivers implement a common interface for both streaming and non-streaming ch
 
 API keys are configured via environment variables (see `.env.example`). Each expert in the database has:
 
-- `driverType`: Enum value (`OPENAI` or `ANTHROPIC`)
+- `driverType`: Enum value (`OPENAI`, `ANTHROPIC`, or `GROK`)
 - `config`: JSON field with model-specific settings
 
 **Example OpenAI configuration:**
 ```json
 {
-  "model": "gpt-4",
+  "model": "gpt-4-turbo",
   "temperature": 0.7,
   "maxTokens": 2000,
   "topP": 1.0
@@ -129,7 +130,18 @@ API keys are configured via environment variables (see `.env.example`). Each exp
 {
   "model": "claude-3-5-sonnet-20241022",
   "temperature": 0.7,
-  "maxTokens": 2000
+  "maxTokens": 2000,
+  "topP": 1.0
+}
+```
+
+**Example Grok configuration:**
+```json
+{
+  "model": "grok-4-latest",
+  "temperature": 0.7,
+  "maxTokens": 2000,
+  "topP": 1.0
 }
 ```
 
@@ -164,10 +176,11 @@ Non-retryable errors (401, 400) fail immediately with descriptive exceptions.
 ### Supported Models
 
 **OpenAI models:**
-- `gpt-4`
-- `gpt-4-turbo`
-- `gpt-3.5-turbo`
-- And newer variants
+- GPT-4.1 family: `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`
+- Reasoning models: `o3`, `o3-mini`, `o3-pro`, `o4-mini`
+- GPT-4o family: `gpt-4o`, `gpt-4o-mini`
+- Realtime models: `gpt-realtime`, `gpt-realtime-mini`
+- Legacy models: `gpt-4`, `gpt-4-turbo`, `gpt-3.5-turbo`
 
 **Anthropic models:**
 - `claude-3-5-sonnet-20241022`
@@ -175,7 +188,14 @@ Non-retryable errors (401, 400) fail immediately with descriptive exceptions.
 - `claude-3-sonnet-20240229`
 - `claude-3-haiku-20240307`
 
-**Note:** Refer to provider documentation for latest model availability.
+**xAI Grok models:**
+- Flagship: `grok-4-latest`, `grok-4-0709`
+- Fast reasoning: `grok-4-fast-reasoning`, `grok-4-fast-reasoning-latest`
+- Fast non-reasoning: `grok-4-fast-non-reasoning`, `grok-4-fast-non-reasoning-latest`
+- Previous generation: `grok-3`, `grok-3-mini`
+- Specialized: `grok-code-fast-1`, `grok-2-vision-1212`
+
+**Note:** Model availability updated as of October 2025. Check provider documentation for latest releases and deprecations.
 
 ### Adding New Providers
 
@@ -238,10 +258,11 @@ To add support for a new LLM provider:
 
 8. **Update this README** with provider-specific configuration and model examples
 
-9. **Install provider's SDK**:
+9. **Install provider's SDK** (if needed):
    ```bash
    npm install <provider-sdk>
    ```
+   **Note:** If the provider has an OpenAI-compatible API (like xAI), you can reuse the OpenAI SDK with a custom `baseURL` instead of installing a separate SDK.
 
 ### Architecture
 
@@ -252,6 +273,21 @@ The system uses the factory pattern: `DriverFactory` creates driver instances ba
 - **Runtime configuration**: Model configuration (temperature, max tokens, etc.) is passed per request to `chat()` and `streamChat()` methods
 - **Common interface**: The abstract `LLMDriver` interface ensures all providers have consistent behavior
 - **Async generators**: Streaming uses async generators for compatibility with WebSocket gateways
+
+### Model Selection Guidelines
+
+Choose the right model for your use case:
+
+- **GPT-4.1 family**: Best for general-purpose tasks with improved cost-efficiency compared to GPT-4o
+- **o3/o4 reasoning models**: Ideal for complex reasoning, math, coding problems requiring deep analysis
+- **GPT-4o**: Multimodal capabilities with strong general performance across diverse tasks
+- **Claude 3.5 Sonnet**: Excellent for analysis, writing, coding with large context windows (200k tokens)
+- **Grok 4**: Strong reasoning with very large context (256k-2M tokens), cost-effective fast variants available
+- **Grok 3 Mini**: Budget-friendly option with strong math and reasoning capabilities
+
+For **Council discussions**, use more capable models for better reasoning and consensus:
+- Recommended: `gpt-4-turbo`, `gpt-4.1`, `o3-mini`, `claude-3-5-sonnet-20241022`, `grok-4-latest`
+- Not recommended: `gpt-3.5-turbo`, `claude-3-haiku-20240307` (optimized for speed over reasoning depth)
 
 ## Frontend Application
 

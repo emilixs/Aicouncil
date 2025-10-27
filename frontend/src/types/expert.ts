@@ -1,6 +1,7 @@
 export enum DriverType {
   OPENAI = 'OPENAI',
   ANTHROPIC = 'ANTHROPIC',
+  GROK = 'GROK',
 }
 
 export interface LLMConfig {

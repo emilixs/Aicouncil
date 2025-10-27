@@ -15,6 +15,7 @@ React single-page application (SPA) built with Vite, TypeScript, and Shadcn UI. 
 - **Zustand** - State management
 - **Tailwind CSS** - Utility-first styling
 - **TypeScript** - Type safety
+- **LLM Providers** - OpenAI, Anthropic, and xAI (Grok) support
 
 ## Prerequisites
 
@@ -175,6 +176,15 @@ VITE_WS_URL=http://localhost:3000
 # WebSocket namespace for discussion sessions
 VITE_WS_NAMESPACE=/discussion
 ```
+
+**Backend API Key Requirements:**
+
+The backend requires appropriate API keys to be configured for the driver types used by experts:
+- `OPENAI_API_KEY` - Required if using OpenAI models
+- `ANTHROPIC_API_KEY` - Required if using Anthropic Claude models
+- `XAI_API_KEY` - Required if using xAI Grok models
+
+At least one API key must be configured for the system to function. Configure keys for the driver types you plan to use.
 
 ## Session Management & Real-Time Discussions
 

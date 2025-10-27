@@ -152,6 +152,7 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
                 <SelectContent>
                   <SelectItem value={DriverType.OPENAI}>OpenAI</SelectItem>
                   <SelectItem value={DriverType.ANTHROPIC}>Anthropic</SelectItem>
+                  <SelectItem value={DriverType.GROK}>xAI (Grok)</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />

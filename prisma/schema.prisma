@@ -26,6 +26,8 @@ enum MessageRole {
 enum DriverType {
   OPENAI
   ANTHROPIC
+  // GROK uses xAI's API which is OpenAI-compatible
+  GROK
 }
 
 model Expert {

@@ -4,6 +4,7 @@ import { DriverType } from '@prisma/client';
 import { LLMDriver } from '../interfaces/llm-driver.interface';
 import { OpenAIDriver } from '../drivers/openai.driver';
 import { ClaudeDriver } from '../drivers/claude.driver';
+import { GrokDriver } from '../drivers/grok.driver';
 import {
   LLMAuthenticationException,
   LLMInvalidRequestException,
@@ -33,6 +34,16 @@ export class DriverFactory {
           );
         }
         return new ClaudeDriver(apiKey);
+      }
+
+      case DriverType.GROK: {
+        const apiKey = this.configService.get<string>('XAI_API_KEY');
+        if (!apiKey || apiKey.trim() === '') {
+          throw new LLMAuthenticationException(
+            'xAI API key not configured',
+          );
+        }
+        return new GrokDriver(apiKey);
       }
 
       default:
