@@ -32,6 +32,7 @@ export class CouncilService {
   private readonly logger = new Logger(CouncilService.name);
   private interventionQueues: Map<string, Array<{ content: string; userId?: string }>> = new Map();
   private sessionControlFlags: Map<string, 'running' | 'paused' | 'stopped'> = new Map();
+  private pauseResolvers: Map<string, (value: 'running' | 'stopped') => void> = new Map();
 
   constructor(
     private readonly sessionService: SessionService,
@@ -75,6 +76,11 @@ export class CouncilService {
       return;
     }
     this.sessionControlFlags.set(sessionId, 'running');
+    const resolver = this.pauseResolvers.get(sessionId);
+    if (resolver) {
+      this.pauseResolvers.delete(sessionId);
+      resolver('running');
+    }
     await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
     this.logger.log(`Session ${sessionId} resumed`);
     this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_RESUMED, {
@@ -92,18 +98,29 @@ export class CouncilService {
       return;
     }
     this.sessionControlFlags.set(sessionId, 'stopped');
+    const resolver = this.pauseResolvers.get(sessionId);
+    if (resolver) {
+      this.pauseResolvers.delete(sessionId);
+      resolver('stopped');
+    }
     this.logger.log(`Session ${sessionId} stop requested`);
+    this.eventEmitter.emit(DISCUSSION_EVENTS.DISCUSSION_STOPPED, {
+      sessionId,
+    });
   }
 
   /**
-   * Wait while the discussion is paused. Returns the control flag when unpaused.
+   * Wait while the discussion is paused. Returns 'running' on resume or 'stopped' on stop.
+   * Uses a Promise resolved by resumeDiscussion/stopDiscussion instead of polling.
    */
-  private async waitWhilePaused(sessionId: string): Promise<'running' | 'stopped'> {
-    while (this.sessionControlFlags.get(sessionId) === 'paused') {
-      await this.sleep(500);
-    }
+  private waitWhilePaused(sessionId: string): Promise<'running' | 'stopped'> {
     const flag = this.sessionControlFlags.get(sessionId);
-    return flag === 'stopped' ? 'stopped' : 'running';
+    if (flag !== 'paused') {
+      return Promise.resolve(flag === 'stopped' ? 'stopped' : 'running');
+    }
+    return new Promise<'running' | 'stopped'>((resolve) => {
+      this.pauseResolvers.set(sessionId, resolve);
+    });
   }
 
   /**
@@ -111,14 +128,14 @@ export class CouncilService {
    * @param sessionId - The session ID
    * @param content - The intervention message content
    * @param userId - Optional user ID
-   * @returns true if intervention was queued, false if session is not ACTIVE or on failure
+   * @returns true if intervention was queued, false if session is not ACTIVE/PAUSED or on failure
    */
   async queueIntervention(sessionId: string, content: string, userId?: string): Promise<boolean> {
     try {
       // Verify session status before queuing
       const session = await this.sessionService.findOne(sessionId);
 
-      if (session.status !== SessionStatus.ACTIVE) {
+      if (session.status !== SessionStatus.ACTIVE && session.status !== SessionStatus.PAUSED) {
         this.logger.warn(
           `Cannot queue intervention for session ${sessionId}: session status is ${session.status}`,
         );
@@ -433,9 +450,10 @@ export class CouncilService {
         messageCount: finalMessageCount,
       } as DiscussionEndedEvent);
 
-      // Cleanup intervention queue and control flag
+      // Cleanup intervention queue, control flag, and pause resolver
       this.interventionQueues.delete(sessionId);
       this.sessionControlFlags.delete(sessionId);
+      this.pauseResolvers.delete(sessionId);
 
       // Return final session state
       return await this.sessionService.findOne(sessionId);
@@ -458,9 +476,10 @@ export class CouncilService {
         this.logger.error(`Failed to cancel session ${sessionId}: ${updateError.message}`);
       }
 
-      // Cleanup intervention queue and control flag
+      // Cleanup intervention queue, control flag, and pause resolver
       this.interventionQueues.delete(sessionId);
       this.sessionControlFlags.delete(sessionId);
+      this.pauseResolvers.delete(sessionId);
 
       throw error;
     }

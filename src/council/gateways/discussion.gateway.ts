@@ -25,6 +25,7 @@ import {
   ExpertTurnStartEvent,
   DiscussionPausedEvent,
   DiscussionResumedEvent,
+  DiscussionStoppedEvent,
 } from '../events/discussion.events';
 import {
   COMPARISON_EVENTS,
@@ -215,6 +216,11 @@ export class DiscussionGateway
     this.eventEmitter.on(DISCUSSION_EVENTS.SESSION_RESUMED, (event: DiscussionResumedEvent) => {
       const roomName = `session:${event.sessionId}`;
       this.server.to(roomName).emit('discussion-resumed', { sessionId: event.sessionId });
+    });
+
+    this.eventEmitter.on(DISCUSSION_EVENTS.DISCUSSION_STOPPED, (event: DiscussionStoppedEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('discussion-stopped', { sessionId: event.sessionId });
     });
 
     // Comparison events

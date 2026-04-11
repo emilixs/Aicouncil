@@ -9,6 +9,7 @@ export const DISCUSSION_EVENTS = {
   SESSION_ENDED: 'discussion.session.ended',
   SESSION_PAUSED: 'discussion.session.paused',
   SESSION_RESUMED: 'discussion.session.resumed',
+  DISCUSSION_STOPPED: 'discussion.stopped',
   ERROR: 'discussion.error',
   EXPERT_TURN_START: 'discussion.expert.turn.start',
 } as const;
@@ -70,5 +71,12 @@ export interface DiscussionPausedEvent {
  * Event emitted when a discussion is resumed
  */
 export interface DiscussionResumedEvent {
+  sessionId: string;
+}
+
+/**
+ * Event emitted immediately when a stop is requested (before loop exits)
+ */
+export interface DiscussionStoppedEvent {
   sessionId: string;
 }

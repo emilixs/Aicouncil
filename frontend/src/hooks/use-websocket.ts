@@ -120,6 +120,14 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           }
         });
 
+        // Discussion stopped (immediate feedback before loop exits)
+        newSocket.on("discussion-stopped", () => {
+          if (isMounted) {
+            setIsDiscussionActive(false);
+            setIsPaused(false);
+          }
+        });
+
         // Session ended
         newSocket.on("session-ended", () => {
           if (isMounted) {
