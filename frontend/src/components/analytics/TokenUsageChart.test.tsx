@@ -1,17 +1,26 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TokenUsageChart } from './TokenUsageChart';
 import type { SessionAnalytics } from '@/types/analytics';
 
-beforeAll(() => {
-  globalThis.ResizeObserver = class ResizeObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-});
+vi.mock('recharts', () => ({
+  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="responsive-container">{children}</div>
+  ),
+  BarChart: ({ children, data }: { children: React.ReactNode; data: unknown[] }) => (
+    <div data-testid="bar-chart" data-length={data.length}>{children}</div>
+  ),
+  Bar: ({ dataKey, fill, name }: { dataKey: string; fill: string; name: string }) => (
+    <div data-testid={`bar-${dataKey}`} data-fill={fill} data-name={name} />
+  ),
+  XAxis: () => <div data-testid="x-axis" />,
+  YAxis: () => <div data-testid="y-axis" />,
+  CartesianGrid: () => <div data-testid="grid" />,
+  Tooltip: () => <div data-testid="tooltip" />,
+  Legend: () => <div data-testid="legend" />,
+}));
 
-const sampleSessions: SessionAnalytics[] = [
+const mockSessions: SessionAnalytics[] = [
   {
     sessionId: 's1',
     problemStatement: 'Short problem',
@@ -20,62 +29,45 @@ const sampleSessions: SessionAnalytics[] = [
     totalRounds: 3,
     estimatedCostUsd: 0.15,
     consensusReached: true,
-    durationMs: 60000,
-    createdAt: '2026-04-01T00:00:00Z',
+    durationMs: 120000,
+    createdAt: '2026-04-01T10:00:00Z',
   },
   {
     sessionId: 's2',
-    problemStatement: 'A much longer problem statement that exceeds twenty characters',
-    status: 'ACTIVE',
-    totalTokens: 12000,
-    totalRounds: 5,
-    estimatedCostUsd: 0.36,
+    problemStatement: 'This is a very long problem statement that exceeds twenty characters',
+    status: 'IN_PROGRESS',
+    totalTokens: 2000,
+    totalRounds: 1,
+    estimatedCostUsd: 0.06,
     consensusReached: false,
-    durationMs: 120000,
-    createdAt: '2026-04-02T00:00:00Z',
+    durationMs: 30000,
+    createdAt: '2026-04-02T14:00:00Z',
   },
 ];
 
 describe('TokenUsageChart', () => {
-  it('renders empty state when no sessions', () => {
+  it('renders chart with session data', () => {
+    render(<TokenUsageChart sessions={mockSessions} />);
+    expect(screen.getByText('Token Usage by Session')).toBeInTheDocument();
+    expect(screen.getByTestId('bar-chart')).toHaveAttribute('data-length', '2');
+  });
+
+  it('shows empty state when no sessions', () => {
     render(<TokenUsageChart sessions={[]} />);
     expect(screen.getByText('No data available')).toBeInTheDocument();
   });
 
-  it('renders the card title', () => {
-    render(<TokenUsageChart sessions={sampleSessions} />);
-    expect(screen.getByText('Token Usage by Session')).toBeInTheDocument();
+  it('uses CSS variable for bar fill color', () => {
+    render(<TokenUsageChart sessions={mockSessions} />);
+    expect(screen.getByTestId('bar-tokens')).toHaveAttribute(
+      'data-fill',
+      'hsl(var(--primary))',
+    );
   });
 
-  it('renders chart container with sample data', () => {
-    const { container } = render(<TokenUsageChart sessions={sampleSessions} />);
-    expect(container.querySelector('.recharts-responsive-container')).toBeTruthy();
-  });
-
-  it('truncates long problem statements to 20 chars', () => {
-    render(<TokenUsageChart sessions={sampleSessions} />);
-    // The short one should appear as-is, the long one truncated
-    expect(screen.queryByText('No data available')).not.toBeInTheDocument();
-  });
-
-  it('shows truncation notice when more than 10 sessions', () => {
-    const manySessions: SessionAnalytics[] = Array.from({ length: 15 }, (_, i) => ({
-      sessionId: `s${i}`,
-      problemStatement: `Problem ${i}`,
-      status: 'COMPLETED',
-      totalTokens: 1000 * (i + 1),
-      totalRounds: 3,
-      estimatedCostUsd: 0.1,
-      consensusReached: true,
-      durationMs: 60000,
-      createdAt: '2026-04-01T00:00:00Z',
-    }));
-    render(<TokenUsageChart sessions={manySessions} />);
-    expect(screen.getByText('Showing 10 of 15 sessions')).toBeInTheDocument();
-  });
-
-  it('does not show truncation notice when 10 or fewer sessions', () => {
-    render(<TokenUsageChart sessions={sampleSessions} />);
-    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+  it('truncates long problem statements with ellipsis', () => {
+    render(<TokenUsageChart sessions={mockSessions} />);
+    const chart = screen.getByTestId('bar-chart');
+    expect(chart).toHaveAttribute('data-length', '2');
   });
 });

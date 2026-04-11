@@ -53,7 +53,7 @@ export function SessionTable({ sessions }: SessionTableProps) {
                   </td>
                   <td className="py-2 text-right">{session.totalRounds}</td>
                   <td className="py-2 text-right">
-                    ${session.estimatedCostUsd.toFixed(2)}
+                    ${(session.estimatedCostUsd ?? 0).toFixed(2)}
                   </td>
                   <td className="py-2">
                     {session.consensusReached ? 'Yes' : 'No'}
