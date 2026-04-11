@@ -93,6 +93,26 @@ export class ExpertService {
     }
   }
 
+  async clone(id: string, options?: { name?: string }): Promise<ExpertResponseDto> {
+    const existing = await this.prisma.expert.findUnique({ where: { id } });
+
+    if (!existing) {
+      throw new NotFoundException(`Expert with ID ${id} not found`);
+    }
+
+    const cloned = await this.prisma.expert.create({
+      data: {
+        name: options?.name ?? `${existing.name} (Copy)`,
+        specialty: existing.specialty,
+        systemPrompt: existing.systemPrompt,
+        driverType: existing.driverType,
+        config: existing.config as any,
+      },
+    });
+
+    return ExpertResponseDto.fromPrisma(cloned);
+  }
+
   async remove(id: string): Promise<void> {
     try {
       await this.prisma.expert.delete({

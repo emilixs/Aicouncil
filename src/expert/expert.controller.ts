@@ -43,6 +43,15 @@ export class ExpertController {
     return this.expertService.update(id, updateExpertDto);
   }
 
+  @Post(':id/clone')
+  @HttpCode(HttpStatus.CREATED)
+  clone(
+    @Param('id') id: string,
+    @Body() body?: { name?: string },
+  ): Promise<ExpertResponseDto> {
+    return this.expertService.clone(id, body);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string): Promise<void> {
