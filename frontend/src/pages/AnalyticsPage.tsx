@@ -40,9 +40,9 @@ export default function AnalyticsPage() {
         const [overviewData, sessionsData, expertsData, comparisonsData] =
           await Promise.all([
             getAnalyticsOverview(filter),
-            getAnalyticsSessions(),
-            getAnalyticsExperts(),
-            getAnalyticsComparisons(),
+            getAnalyticsSessions(filter),
+            getAnalyticsExperts(filter),
+            getAnalyticsComparisons(filter),
           ]);
         setOverview(overviewData);
         setSessions(sessionsData);

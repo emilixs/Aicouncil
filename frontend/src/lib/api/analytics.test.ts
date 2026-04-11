@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getAnalyticsOverview,
   getAnalyticsSessions,
-  getAnalyticsSession,
   getAnalyticsExperts,
   getAnalyticsExpert,
   getAnalyticsComparisons,
@@ -76,21 +75,10 @@ describe('analytics API client', () => {
       ];
       mockGet.mockResolvedValue({ data: mockSessions });
       const result = await getAnalyticsSessions();
-      expect(mockGet).toHaveBeenCalledWith('/analytics/sessions');
+      expect(mockGet).toHaveBeenCalledWith('/analytics/sessions', {
+        params: {},
+      });
       expect(result).toEqual(mockSessions);
-    });
-  });
-
-  describe('getAnalyticsSession', () => {
-    it('fetches session detail by id', async () => {
-      const mockDetail = {
-        metrics: { sessionId: '1', totalTokens: 1000 },
-        perExpert: [],
-      };
-      mockGet.mockResolvedValue({ data: mockDetail });
-      const result = await getAnalyticsSession('1');
-      expect(mockGet).toHaveBeenCalledWith('/analytics/sessions/1');
-      expect(result).toEqual(mockDetail);
     });
   });
 
@@ -108,7 +96,9 @@ describe('analytics API client', () => {
       ];
       mockGet.mockResolvedValue({ data: mockExperts });
       const result = await getAnalyticsExperts();
-      expect(mockGet).toHaveBeenCalledWith('/analytics/experts');
+      expect(mockGet).toHaveBeenCalledWith('/analytics/experts', {
+        params: {},
+      });
       expect(result).toEqual(mockExperts);
     });
   });
@@ -142,7 +132,9 @@ describe('analytics API client', () => {
       ];
       mockGet.mockResolvedValue({ data: mockComparisons });
       const result = await getAnalyticsComparisons();
-      expect(mockGet).toHaveBeenCalledWith('/analytics/comparisons');
+      expect(mockGet).toHaveBeenCalledWith('/analytics/comparisons', {
+        params: {},
+      });
       expect(result).toEqual(mockComparisons);
     });
   });
