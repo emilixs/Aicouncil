@@ -17,6 +17,11 @@ export function ComparisonView({ session, messages, isConnected }: ComparisonVie
     return messages.find((m) => m.expertId === expertId);
   };
 
+  const expertMessages = experts.map((expert) => ({
+    expert,
+    message: getExpertMessage(expert.id),
+  }));
+
   const formatDuration = (ms: number | null | undefined): string => {
     if (ms == null) return "-";
     const seconds = ms / 1000;
@@ -76,6 +81,45 @@ export function ComparisonView({ session, messages, isConnected }: ComparisonVie
           );
         })}
       </div>
+
+      {/* Summary Metrics Table */}
+      {expertMessages.some(({ message }) => message) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Summary Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 pr-4 font-medium">Expert</th>
+                    <th className="text-left py-2 pr-4 font-medium">Model</th>
+                    <th className="text-right py-2 pr-4 font-medium">Duration</th>
+                    <th className="text-right py-2 font-medium">Tokens</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expertMessages.map(({ expert, message }) => (
+                    <tr key={expert.id} className="border-b last:border-b-0">
+                      <td className="py-2 pr-4">{expert.name}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        {message?.modelUsed ?? "-"}
+                      </td>
+                      <td className="py-2 pr-4 text-right">
+                        {formatDuration(message?.durationMs)}
+                      </td>
+                      <td className="py-2 text-right">
+                        {message?.tokenCount ?? "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
