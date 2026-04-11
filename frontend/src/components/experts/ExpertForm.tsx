@@ -4,6 +4,7 @@ import { expertFormSchema, ExpertFormValues } from "@/lib/validations/expert";
 import { MODEL_OPTIONS, DEFAULT_CONFIG } from "@/lib/constants/models";
 import { createExpert, updateExpert } from "@/lib/api/experts";
 import { ExpertResponse, DriverType } from "@/types";
+import { ExpertTemplate } from "@/lib/constants/expert-templates";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,11 +28,12 @@ import {
 
 interface ExpertFormProps {
   expert?: ExpertResponse;
+  template?: ExpertTemplate | null;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
+export function ExpertForm({ expert, template, onSuccess, onCancel }: ExpertFormProps) {
   const { toast } = useToast();
 
   const form = useForm<ExpertFormValues>({
@@ -45,13 +47,21 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
           driverType: expert.driverType,
           config: expert.config,
         }
-      : {
-          name: "",
-          specialty: "",
-          systemPrompt: "",
-          driverType: DriverType.OPENAI,
-          config: DEFAULT_CONFIG[DriverType.OPENAI],
-        },
+      : template
+        ? {
+            name: template.name,
+            specialty: template.specialty,
+            systemPrompt: template.systemPrompt,
+            driverType: template.driverType,
+            config: { ...DEFAULT_CONFIG[template.driverType], ...template.config },
+          }
+        : {
+            name: "",
+            specialty: "",
+            systemPrompt: "",
+            driverType: DriverType.OPENAI,
+            config: DEFAULT_CONFIG[DriverType.OPENAI],
+          },
   });
 
   const watchedDriverType = form.watch("driverType");

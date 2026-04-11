@@ -100,17 +100,31 @@ export class ExpertService {
       throw new NotFoundException(`Expert with ID ${id} not found`);
     }
 
-    const cloned = await this.prisma.expert.create({
-      data: {
-        name: options?.name ?? `${existing.name} (Copy)`,
-        specialty: existing.specialty,
-        systemPrompt: existing.systemPrompt,
-        driverType: existing.driverType,
-        config: existing.config as any,
-      },
-    });
+    try {
+      const cloned = await this.prisma.expert.create({
+        data: {
+          name: options?.name ?? `${existing.name} (Copy)`,
+          specialty: existing.specialty,
+          systemPrompt: existing.systemPrompt,
+          driverType: existing.driverType,
+          config: existing.config as any,
+        },
+      });
 
-    return ExpertResponseDto.fromPrisma(cloned);
+      return ExpertResponseDto.fromPrisma(cloned);
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException('An expert with this name already exists');
+        }
+        this.logger.error(`Prisma error cloning expert: ${error.message}`, error.stack);
+        throw new BadRequestException('Failed to clone expert due to validation error');
+      }
+      this.logger.error(`Unexpected error cloning expert: ${error.message}`, error.stack);
+      throw new InternalServerErrorException(
+        'An unexpected error occurred while cloning the expert',
+      );
+    }
   }
 
   async remove(id: string): Promise<void> {

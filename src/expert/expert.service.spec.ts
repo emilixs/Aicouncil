@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { ExpertService } from './expert.service';
 import { PrismaService } from '../common/prisma.service';
 import { ExpertResponseDto } from './dto';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 describe('ExpertService - clone', () => {
   let service: ExpertService;
@@ -107,6 +108,25 @@ describe('ExpertService - clone', () => {
           data: expect.not.objectContaining({ id: mockExpert.id }),
         }),
       );
+    });
+
+    it('should throw ConflictException on unique constraint violation', async () => {
+      (prisma.expert.findUnique as jest.Mock).mockResolvedValue(mockExpert);
+      (prisma.expert.create as jest.Mock).mockRejectedValue(
+        new PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '6.0.0',
+        }),
+      );
+
+      await expect(service.clone(mockExpert.id)).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw InternalServerErrorException on unexpected error', async () => {
+      (prisma.expert.findUnique as jest.Mock).mockResolvedValue(mockExpert);
+      (prisma.expert.create as jest.Mock).mockRejectedValue(new Error('Unexpected'));
+
+      await expect(service.clone(mockExpert.id)).rejects.toThrow(InternalServerErrorException);
     });
   });
 });
