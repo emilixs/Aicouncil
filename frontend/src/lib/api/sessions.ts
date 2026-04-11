@@ -33,7 +33,7 @@ export async function startSession(id: string): Promise<SessionResponse> {
 
 export async function getSessionToken(id: string): Promise<TokenResponse> {
   const response = await apiClient.post<TokenResponse>(`/sessions/${id}/token`);
-  localStorage.setItem('token', response.data.token);
+  localStorage.setItem('session_token', response.data.token);
   return response.data;
 }
 
