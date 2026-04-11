@@ -39,8 +39,11 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
       problemStatement: "",
       expertIds: [],
       maxMessages: 30,
+      type: "DISCUSSION",
     },
   });
+
+  const sessionType = form.watch("type");
 
   // Fetch experts on mount
   useEffect(() => {
@@ -64,11 +67,15 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
 
   const onSubmit = async (values: SessionFormValues) => {
     try {
-      const response = await createSession({
+      const payload: any = {
         problemStatement: values.problemStatement,
         expertIds: values.expertIds,
-        maxMessages: values.maxMessages,
-      });
+        type: values.type,
+      };
+      if (values.type === "DISCUSSION") {
+        payload.maxMessages = values.maxMessages;
+      }
+      const response = await createSession(payload);
       toast({
         title: "Success",
         description: "Session created successfully",
@@ -89,16 +96,61 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Session Type Selector */}
+        <FormField
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Session Type</FormLabel>
+              <div className="flex gap-1 rounded-md border p-1">
+                <button
+                  type="button"
+                  data-state={field.value === "DISCUSSION" ? "on" : "off"}
+                  aria-pressed={field.value === "DISCUSSION"}
+                  className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                    field.value === "DISCUSSION"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }`}
+                  onClick={() => field.onChange("DISCUSSION")}
+                >
+                  Discussion
+                </button>
+                <button
+                  type="button"
+                  data-state={field.value === "COMPARISON" ? "on" : "off"}
+                  aria-pressed={field.value === "COMPARISON"}
+                  className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                    field.value === "COMPARISON"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }`}
+                  onClick={() => field.onChange("COMPARISON")}
+                >
+                  Comparison
+                </button>
+              </div>
+            </FormItem>
+          )}
+        />
+
         {/* Problem Statement */}
         <FormField
           control={form.control}
           name="problemStatement"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Problem Statement</FormLabel>
+              <FormLabel>
+                {sessionType === "COMPARISON" ? "Prompt" : "Problem Statement"}
+              </FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Describe the problem or topic for discussion..."
+                  placeholder={
+                    sessionType === "COMPARISON"
+                      ? "Describe the prompt for comparison..."
+                      : "Describe the problem or topic for discussion..."
+                  }
                   className="min-h-[120px] resize-none"
                   {...field}
                 />
@@ -173,34 +225,35 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
           )}
         />
 
-        {/* Max Messages */}
-        <FormField
-          control={form.control}
-          name="maxMessages"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Maximum Messages</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min="5"
-                  max="200"
-                  {...field}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Let zod handle coercion and validation
-                    field.onChange(value === "" ? undefined : value);
-                  }}
-                  value={field.value ?? ""}
-                />
-              </FormControl>
-              <div className="text-xs text-muted-foreground">
-                Discussion will end after {field.value || 30} messages or consensus is reached
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Max Messages — only for Discussion mode */}
+        {sessionType === "DISCUSSION" && (
+          <FormField
+            control={form.control}
+            name="maxMessages"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Maximum Messages</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="5"
+                    max="200"
+                    {...field}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      field.onChange(value === "" ? undefined : value);
+                    }}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <div className="text-xs text-muted-foreground">
+                  Session will end after {field.value || 30} messages or consensus is reached
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Footer */}
         <div className="flex justify-end gap-2 pt-4">
@@ -215,4 +268,3 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
     </Form>
   );
 }
-

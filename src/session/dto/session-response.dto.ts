@@ -36,6 +36,9 @@ export class SessionResponseDto {
    * Maximum number of messages allowed in this session
    */
   @Expose()
+  type?: string;
+
+  @Expose()
   maxMessages: number;
 
   /**
@@ -98,6 +101,7 @@ export class SessionResponseDto {
       problemStatement: session.problemStatement,
       status: session.status,
       statusDisplay: statusDisplayMap[session.status],
+      type: (session as any).type ?? 'DISCUSSION',
       maxMessages: session.maxMessages,
       consensusReached: session.consensusReached,
       createdAt: session.createdAt,

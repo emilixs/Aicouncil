@@ -30,6 +30,11 @@ enum DriverType {
   GROK
 }
 
+enum SessionType {
+  DISCUSSION
+  COMPARISON
+}
+
 model Expert {
   id           String     @id @default(cuid())
   name         String
@@ -50,6 +55,7 @@ model Session {
   id               String        @id @default(cuid())
   problemStatement String        @db.Text
   status           SessionStatus @default(PENDING)
+  type             SessionType   @default(DISCUSSION)
   maxMessages      Int           @default(20)
   consensusReached Boolean       @default(false)
   createdAt        DateTime      @default(now())
@@ -59,6 +65,7 @@ model Session {
   messages Message[]
 
   @@index([status])
+  @@index([type])
 }
 
 model Message {
@@ -68,6 +75,9 @@ model Message {
   content        String      @db.Text
   role           MessageRole
   isIntervention Boolean     @default(false)
+  durationMs     Int?
+  tokenCount     Int?
+  modelUsed      String?
   timestamp      DateTime    @default(now())
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)

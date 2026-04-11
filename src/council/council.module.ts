@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CouncilController } from './council.controller';
 import { CouncilService } from './council.service';
+import { ComparisonService } from './comparison.service';
 import { SessionModule } from '../session/session.module';
 import { MessageModule } from '../message/message.module';
 import { LlmModule } from '../llm/llm.module';
@@ -26,7 +27,7 @@ import { DiscussionGateway } from './gateways/discussion.gateway';
 @Module({
   imports: [SessionModule, MessageModule, LlmModule],
   controllers: [CouncilController],
-  providers: [CouncilService, DiscussionGateway],
-  exports: [CouncilService],
+  providers: [CouncilService, ComparisonService, DiscussionGateway],
+  exports: [CouncilService, ComparisonService],
 })
 export class CouncilModule {}
