@@ -70,20 +70,22 @@ export function MessageItem({ message, isConsensusMessage }: MessageItemProps) {
       <div className="text-sm text-gray-700 prose prose-sm max-w-none dark:prose-invert">
         <ReactMarkdown
           components={{
-            p: ({ node, ...props }: any) => <p className="mb-2" {...props} />,
-            ul: ({ node, ...props }: any) => <ul className="list-disc list-inside mb-2" {...props} />,
-            ol: ({ node, ...props }: any) => <ol className="list-decimal list-inside mb-2" {...props} />,
-            li: ({ node, ...props }: any) => <li className="mb-1" {...props} />,
-            code: ({ node, inline, ...props }: any) =>
-              inline ? (
-                <code className="bg-gray-200 px-1 py-0.5 rounded text-xs" {...props} />
+            p: (props) => <p className="mb-2" {...props} />,
+            ul: (props) => <ul className="list-disc list-inside mb-2" {...props} />,
+            ol: (props) => <ol className="list-decimal list-inside mb-2" {...props} />,
+            li: (props) => <li className="mb-1" {...props} />,
+            code: ({ children, className, ...props }) => {
+              const isInline = !className;
+              return isInline ? (
+                <code className="bg-gray-200 px-1 py-0.5 rounded text-xs" {...props}>{children}</code>
               ) : (
-                <code className="block bg-gray-200 p-2 rounded mb-2 overflow-x-auto" {...props} />
-              ),
-            blockquote: ({ node, ...props }: any) => (
+                <code className="block bg-gray-200 p-2 rounded mb-2 overflow-x-auto" {...props}>{children}</code>
+              );
+            },
+            blockquote: (props) => (
               <blockquote className="border-l-4 border-gray-300 pl-4 italic mb-2" {...props} />
             ),
-            a: ({ node, ...props }: any) => (
+            a: (props) => (
               <a className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />
             ),
           }}

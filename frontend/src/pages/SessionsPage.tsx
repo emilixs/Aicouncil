@@ -19,6 +19,7 @@ export default function SessionsPage() {
   // Fetch sessions on mount
   useEffect(() => {
     fetchSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchSessions = async () => {
