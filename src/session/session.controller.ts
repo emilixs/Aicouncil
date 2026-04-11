@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { Public } from '../common/auth/public.decorator';
 import { SessionService } from './session.service';
 import { CreateSessionDto, SessionResponseDto } from './dto';
 import { MessageService } from '../message/message.service';
@@ -69,6 +70,7 @@ export class SessionController {
    * @param body - Optional body containing userId
    * @returns JWT token and session ID
    */
+  @Public()
   @Post(':id/token')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
