@@ -41,8 +41,7 @@ export function scoreMemory(
   memoryTopics: string[],
   queryTopics: string[],
 ): number {
-  const effective = calculateEffectiveRelevance(baseRelevance, createdAt);
   const recency = calculateRecencyBoost(createdAt);
   const overlap = calculateTopicOverlap(memoryTopics, queryTopics);
-  return effective * recency * overlap;
+  return baseRelevance * recency * overlap;
 }

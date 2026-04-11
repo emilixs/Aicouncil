@@ -68,10 +68,14 @@ describe('MemoryService', () => {
 
       mockPrismaService.expert.findUnique.mockResolvedValue({ id: 'exp1' });
       mockPrismaService.expertMemory.findMany.mockResolvedValue(mockMemories);
+      mockPrismaService.expertMemory.count.mockResolvedValue(1);
 
       const result = await service.findAllByExpert('exp1');
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('mem1');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe('mem1');
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(20);
     });
 
     it('should throw NotFoundException for non-existent expert', async () => {
@@ -348,6 +352,94 @@ describe('MemoryService', () => {
       expect(result).toContain('API Design Review');
       expect(result).toContain('[Note]');
       expect(result).toContain('Remember to consider rate limiting');
+    });
+  });
+
+  describe('pruneMemories (via create)', () => {
+    it('should not delete USER_NOTE entries when pruning', async () => {
+      const mockExpert = { id: 'exp1', memoryMaxEntries: 2 };
+      const newMemory = {
+        id: 'mem-new',
+        expertId: 'exp1',
+        sessionId: null,
+        type: MemoryType.USER_NOTE,
+        content: 'New note',
+        relevance: 1.0,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockPrismaService.expert.findUnique.mockResolvedValue(mockExpert);
+      mockPrismaService.expertMemory.create.mockResolvedValue(newMemory);
+      // Total count is 3, exceeds maxEntries of 2
+      mockPrismaService.expertMemory.count.mockResolvedValue(3);
+      // Return only non-USER_NOTE candidates (USER_NOTEs excluded by the where clause)
+      mockPrismaService.expertMemory.findMany.mockResolvedValue([
+        {
+          id: 'mem-summary',
+          relevance: 0.5,
+          createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+        },
+      ]);
+      mockPrismaService.expertMemory.delete.mockResolvedValue(undefined);
+
+      await service.create('exp1', { content: 'New note' });
+
+      // pruneMemories should have queried with type NOT USER_NOTE
+      expect(mockPrismaService.expertMemory.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            expertId: 'exp1',
+            type: { not: MemoryType.USER_NOTE },
+          }),
+        }),
+      );
+      // Should delete the low-relevance summary, not the USER_NOTE
+      expect(mockPrismaService.expertMemory.delete).toHaveBeenCalledWith({
+        where: { id: 'mem-summary' },
+      });
+    });
+
+    it('should order prune candidates by effective relevance ascending', async () => {
+      const mockExpert = { id: 'exp1', memoryMaxEntries: 1 };
+      const newMemory = {
+        id: 'mem-new',
+        expertId: 'exp1',
+        sessionId: null,
+        type: MemoryType.USER_NOTE,
+        content: 'New note',
+        relevance: 1.0,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockPrismaService.expert.findUnique.mockResolvedValue(mockExpert);
+      mockPrismaService.expertMemory.create.mockResolvedValue(newMemory);
+      mockPrismaService.expertMemory.count.mockResolvedValue(3);
+      // Return two candidates: one old with low relevance, one recent with high relevance
+      mockPrismaService.expertMemory.findMany.mockResolvedValue([
+        {
+          id: 'mem-old-low',
+          relevance: 0.3,
+          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        },
+        {
+          id: 'mem-recent-high',
+          relevance: 1.0,
+          createdAt: new Date(),
+        },
+      ]);
+      mockPrismaService.expertMemory.delete.mockResolvedValue(undefined);
+
+      await service.create('exp1', { content: 'New note' });
+
+      // Should delete the lowest effective relevance entries first
+      const deleteCalls = mockPrismaService.expertMemory.delete.mock.calls;
+      expect(deleteCalls.length).toBe(2);
+      // The old low-relevance memory should be deleted first
+      expect(deleteCalls[0][0].where.id).toBe('mem-old-low');
     });
   });
 });

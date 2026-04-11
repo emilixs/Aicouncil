@@ -28,18 +28,19 @@ describe('MemoryController', () => {
 
   describe('findAll', () => {
     it('should call findAllByExpert with correct params', async () => {
-      mockMemoryService.findAllByExpert.mockResolvedValue([]);
+      const mockResult = { data: [], total: 0, page: 1, limit: 20 };
+      mockMemoryService.findAllByExpert.mockResolvedValue(mockResult);
       const result = await controller.findAll('exp1', undefined, '1', '20');
       expect(mockMemoryService.findAllByExpert).toHaveBeenCalledWith('exp1', {
         type: undefined,
         page: 1,
         limit: 20,
       });
-      expect(result).toEqual([]);
+      expect(result).toEqual(mockResult);
     });
 
     it('should pass type filter when provided', async () => {
-      mockMemoryService.findAllByExpert.mockResolvedValue([]);
+      mockMemoryService.findAllByExpert.mockResolvedValue({ data: [], total: 0, page: 1, limit: 10 });
       await controller.findAll('exp1', MemoryType.USER_NOTE, '1', '10');
       expect(mockMemoryService.findAllByExpert).toHaveBeenCalledWith('exp1', {
         type: MemoryType.USER_NOTE,

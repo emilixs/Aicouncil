@@ -12,7 +12,7 @@ export class UpdateMemoryDto {
   @IsOptional()
   @IsString()
   @MinLength(1)
-  @MaxLength(10000)
+  @MaxLength(5000)
   content?: string;
 
   @IsOptional()
