@@ -57,18 +57,26 @@ model Session {
 
   experts  SessionExpert[]
   messages Message[]
+  metrics  SessionMetrics?
 
   @@index([status])
 }
 
 model Message {
-  id             String      @id @default(cuid())
-  sessionId      String
-  expertId       String?
-  content        String      @db.Text
-  role           MessageRole
-  isIntervention Boolean     @default(false)
-  timestamp      DateTime    @default(now())
+  id               String      @id @default(cuid())
+  sessionId        String
+  expertId         String?
+  content          String      @db.Text
+  role             MessageRole
+  isIntervention   Boolean     @default(false)
+  timestamp        DateTime    @default(now())
+  roundNumber      Int?
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  model            String?
+  responseTimeMs   Int?
+  finishReason     String?
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   expert  Expert? @relation(fields: [expertId], references: [id], onDelete: SetNull)
@@ -90,5 +98,21 @@ model SessionExpert {
   @@unique([sessionId, expertId])
   @@index([sessionId])
   @@index([expertId])
+}
+
+model SessionMetrics {
+  id                    String  @id @default(cuid())
+  sessionId             String  @unique
+  totalTokens           Int     @default(0)
+  totalPromptTokens     Int     @default(0)
+  totalCompletionTokens Int     @default(0)
+  totalRounds           Int     @default(0)
+  totalMessages         Int     @default(0)
+  totalInterventions    Int     @default(0)
+  durationMs            Int     @default(0)
+  avgResponseTimeMs     Float   @default(0)
+  estimatedCostUsd      Float   @default(0)
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
