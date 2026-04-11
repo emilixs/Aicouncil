@@ -9,6 +9,7 @@ import { ExpertModule } from './expert/expert.module';
 import { SessionModule } from './session/session.module';
 import { MessageModule } from './message/message.module';
 import { CouncilModule } from './council/council.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CouncilModule } from './council/council.module';
     SessionModule,
     MessageModule,
     CouncilModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

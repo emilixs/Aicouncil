@@ -83,7 +83,7 @@ export class CouncilService {
    * Process queued interventions by creating USER messages
    * @param sessionId - The session ID
    */
-  private async processInterventions(sessionId: string): Promise<void> {
+  private async processInterventions(sessionId: string, roundNumber?: number): Promise<void> {
     const queue = this.interventionQueues.get(sessionId);
     if (!queue || queue.length === 0) {
       return;
@@ -98,6 +98,7 @@ export class CouncilService {
           content: intervention.content,
           role: MessageRole.USER,
           isIntervention: true,
+          roundNumber,
         });
 
         // Emit message created event
@@ -139,7 +140,10 @@ export class CouncilService {
 
     try {
       // Comment 5: Use experts directly from session (remove redundant re-fetching)
-      const experts = session.experts;
+      // Normalize experts: handle both ExpertResponseDto[] and raw SessionExpert[] with nested expert
+      const experts = session.experts.map((e: any) =>
+        e.expert ? e.expert : e,
+      );
 
       // Comment 1: Validate that session has experts
       if (experts.length === 0) {
@@ -184,11 +188,12 @@ export class CouncilService {
       // Initialize discussion loop variables
       let currentExpertIndex = 0;
       let consensusReached = false;
+      let currentRound = 1;
 
       // Main discussion loop
       while (!consensusReached) {
         // Process any queued interventions before expert turn
-        await this.processInterventions(sessionId);
+        await this.processInterventions(sessionId, currentRound);
 
         // Check message count
         const messageCount = await this.messageService.countBySession(sessionId);
@@ -231,8 +236,10 @@ export class CouncilService {
           // Transform config (validation already done during pre-validation)
           const expertConfig = plainToInstance(LLMConfig, currentExpert.config);
 
-          // Get response from LLM
+          // Get response from LLM with timing
+          const startTime = Date.now();
           const response = await driver.chat(contextMessages, expertConfig);
+          const responseTimeMs = Date.now() - startTime;
           this.logger.log(
             `Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`,
           );
@@ -247,12 +254,19 @@ export class CouncilService {
             continue;
           }
 
-          // Create message in database
+          // Create message in database with analytics fields
           const message = await this.messageService.create({
             sessionId,
             expertId: currentExpert.id,
             content: trimmedContent,
             role: MessageRole.ASSISTANT,
+            roundNumber: currentRound,
+            promptTokens: response.usage?.promptTokens ?? undefined,
+            completionTokens: response.usage?.completionTokens ?? undefined,
+            totalTokens: response.usage?.totalTokens ?? undefined,
+            model: response.model ?? undefined,
+            responseTimeMs,
+            finishReason: response.finishReason ?? undefined,
           });
 
           // Emit message created event
@@ -307,6 +321,11 @@ export class CouncilService {
 
         // Move to next expert
         currentExpertIndex++;
+
+        // Increment round number after all experts have spoken
+        if (currentExpertIndex % experts.length === 0) {
+          currentRound++;
+        }
 
         // Comment 4: Add small inter-turn delay to reduce provider rate-limit risk
         await this.sleep(200); // 200ms delay between turns
