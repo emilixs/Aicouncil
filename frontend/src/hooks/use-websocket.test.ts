@@ -26,7 +26,7 @@ describe('useWebSocket — comparison events', () => {
 
   // Helper to simulate socket events
   const getEventHandler = (eventName: string) => {
-    const call = mockSocket.on.mock.calls.find(([name]: [string]) => name === eventName);
+    const call = mockSocket.on.mock.calls.find((c: unknown[]) => c[0] === eventName);
     return call ? call[1] : undefined;
   };
 

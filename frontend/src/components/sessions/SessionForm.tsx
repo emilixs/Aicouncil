@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { sessionFormSchema, SessionFormValues } from "@/lib/validations/session";
 import { createSession } from "@/lib/api/sessions";
+import { SessionType } from "@/types/session";
+import type { CreateSessionDto } from "@/types/session";
 import { getExperts } from "@/lib/api/experts";
 import { ExpertResponse } from "@/types";
 import { useToast } from "@/hooks/use-toast";
@@ -67,14 +69,12 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
 
   const onSubmit = async (values: SessionFormValues) => {
     try {
-      const payload: any = {
+      const payload: CreateSessionDto = {
         problemStatement: values.problemStatement,
         expertIds: values.expertIds,
-        type: values.type,
+        type: values.type as SessionType,
+        ...(values.type === "DISCUSSION" ? { maxMessages: values.maxMessages } : {}),
       };
-      if (values.type === "DISCUSSION") {
-        payload.maxMessages = values.maxMessages;
-      }
       const response = await createSession(payload);
       toast({
         title: "Success",

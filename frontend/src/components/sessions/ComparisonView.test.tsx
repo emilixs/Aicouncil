@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { ComparisonView } from './ComparisonView';
+import { DriverType } from '@/types/expert';
+import { MessageRole } from '@/types/session';
 import type { SessionResponse, MessageResponse } from '@/types/session';
 
 describe('ComparisonView', () => {
@@ -17,7 +19,8 @@ describe('ComparisonView', () => {
         id: 'expert-1',
         name: 'GPT Expert',
         specialty: 'Backend',
-        driverType: 'OPENAI',
+        systemPrompt: 'You are a backend expert.',
+        driverType: DriverType.OPENAI,
         config: { model: 'gpt-4' },
         createdAt: '2025-01-01T00:00:00Z',
         updatedAt: '2025-01-01T00:00:00Z',
@@ -26,7 +29,8 @@ describe('ComparisonView', () => {
         id: 'expert-2',
         name: 'Claude Expert',
         specialty: 'Architecture',
-        driverType: 'ANTHROPIC',
+        systemPrompt: 'You are an architecture expert.',
+        driverType: DriverType.ANTHROPIC,
         config: { model: 'claude-sonnet-4-20250514' },
         createdAt: '2025-01-01T00:00:00Z',
         updatedAt: '2025-01-01T00:00:00Z',
@@ -39,17 +43,16 @@ describe('ComparisonView', () => {
     sessionId: 'session-1',
     expertId: 'expert-1',
     content: 'This is my analysis of the API design.',
-    role: 'ASSISTANT' as any,
+    role: MessageRole.ASSISTANT,
     isIntervention: false,
     timestamp: '2025-01-01T00:00:01Z',
     expertName: 'GPT Expert',
     expertSpecialty: 'Backend',
-    // New metric fields for comparison mode
     durationMs: 1500,
     tokenCount: 300,
     modelUsed: 'gpt-4',
     ...overrides,
-  } as any);
+  });
 
   it('should render a column for each expert', () => {
     const messages = [
@@ -61,7 +64,7 @@ describe('ComparisonView', () => {
         durationMs: 1200,
         tokenCount: 250,
         modelUsed: 'gpt-4',
-      } as any),
+      }),
       makeMessage({
         id: 'msg-2',
         expertId: 'expert-2',
@@ -70,7 +73,7 @@ describe('ComparisonView', () => {
         durationMs: 800,
         tokenCount: 180,
         modelUsed: 'claude-sonnet-4-20250514',
-      } as any),
+      }),
     ];
 
     render(
@@ -99,7 +102,7 @@ describe('ComparisonView', () => {
         durationMs: 1500,
         tokenCount: 300,
         modelUsed: 'gpt-4',
-      } as any),
+      }),
       makeMessage({
         id: 'msg-2',
         expertId: 'expert-2',
@@ -107,7 +110,7 @@ describe('ComparisonView', () => {
         durationMs: 950,
         tokenCount: 220,
         modelUsed: 'claude-sonnet-4-20250514',
-      } as any),
+      }),
     ];
 
     render(
@@ -158,7 +161,8 @@ describe('ComparisonView', () => {
           id: 'expert-3',
           name: 'Grok Expert',
           specialty: 'Creative',
-          driverType: 'GROK',
+          systemPrompt: 'You are a creative expert.',
+          driverType: DriverType.GROK,
           config: { model: 'grok-2' },
           createdAt: '2025-01-01T00:00:00Z',
           updatedAt: '2025-01-01T00:00:00Z',
@@ -172,19 +176,19 @@ describe('ComparisonView', () => {
         expertId: 'expert-1',
         expertName: 'GPT Expert',
         content: 'GPT analysis.',
-      } as any),
+      }),
       makeMessage({
         id: 'msg-2',
         expertId: 'expert-2',
         expertName: 'Claude Expert',
         content: 'Claude analysis.',
-      } as any),
+      }),
       makeMessage({
         id: 'msg-3',
         expertId: 'expert-3',
         expertName: 'Grok Expert',
         content: 'Grok analysis.',
-      } as any),
+      }),
     ];
 
     render(
