@@ -8,9 +8,11 @@ import {
   ArrayMaxSize,
   IsOptional,
   IsInt,
+  IsEnum,
   Min,
   Max,
 } from 'class-validator';
+import { SessionType } from '@prisma/client';
 
 /**
  * Data Transfer Object for creating a new session.
@@ -49,4 +51,8 @@ export class CreateSessionDto {
   @Min(5)
   @Max(100)
   maxMessages?: number;
+
+  @IsOptional()
+  @IsEnum(SessionType)
+  type?: SessionType;
 }
