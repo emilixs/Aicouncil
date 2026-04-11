@@ -300,9 +300,9 @@ Respond ONLY with valid JSON.`;
       select: { id: true },
     });
 
-    for (const mem of toDelete) {
-      await this.prisma.expertMemory.delete({ where: { id: mem.id } });
-    }
+    await this.prisma.expertMemory.deleteMany({
+      where: { id: { in: toDelete.map((mem) => mem.id) } },
+    });
   }
 
   private formatAge(date: Date): string {
