@@ -22,7 +22,9 @@ interface ConsensusChartProps {
 
 export function ConsensusChart({ comparisons }: ConsensusChartProps) {
   const data = comparisons.map((c) => ({
-    name: c.expertCombination.join(', ').slice(0, 30),
+    name: c.expertCombination.join(', ').length > 30
+      ? c.expertCombination.join(', ').slice(0, 30) + '...'
+      : c.expertCombination.join(', '),
     consensusRate: Math.round(c.consensusRate * 100),
     avgRounds: c.avgRounds,
     sessions: c.sessionCount,
@@ -58,14 +60,14 @@ export function ConsensusChart({ comparisons }: ConsensusChartProps) {
               <Bar
                 yAxisId="left"
                 dataKey="consensusRate"
-                fill="hsl(142, 71%, 45%)"
+                fill="hsl(var(--chart-2))"
                 name="Consensus Rate (%)"
                 radius={[4, 4, 0, 0]}
               />
               <Bar
                 yAxisId="right"
                 dataKey="avgRounds"
-                fill="hsl(221, 83%, 53%)"
+                fill="hsl(var(--chart-1))"
                 name="Avg Rounds"
                 radius={[4, 4, 0, 0]}
               />

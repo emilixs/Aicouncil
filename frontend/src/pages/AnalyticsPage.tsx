@@ -37,26 +37,34 @@ export default function AnalyticsPage() {
     async (filter?: DateRangeFilterType) => {
       try {
         setLoading(true);
-        const [overviewData, sessionsData, expertsData, comparisonsData] =
-          await Promise.all([
+        const [overviewResult, sessionsResult, expertsResult, comparisonsResult] =
+          await Promise.allSettled([
             getAnalyticsOverview(filter),
             getAnalyticsSessions(),
             getAnalyticsExperts(),
             getAnalyticsComparisons(),
           ]);
-        setOverview(overviewData);
-        setSessions(sessionsData);
-        setExperts(expertsData);
-        setComparisons(comparisonsData);
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description:
-            error instanceof Error
-              ? error.message
-              : 'Failed to load analytics',
-          variant: 'destructive',
-        });
+
+        if (overviewResult.status === 'fulfilled') {
+          setOverview(overviewResult.value);
+        } else {
+          toast({ title: 'Error', description: 'Failed to load overview metrics', variant: 'destructive' });
+        }
+        if (sessionsResult.status === 'fulfilled') {
+          setSessions(sessionsResult.value);
+        } else {
+          toast({ title: 'Error', description: 'Failed to load sessions', variant: 'destructive' });
+        }
+        if (expertsResult.status === 'fulfilled') {
+          setExperts(expertsResult.value);
+        } else {
+          toast({ title: 'Error', description: 'Failed to load expert data', variant: 'destructive' });
+        }
+        if (comparisonsResult.status === 'fulfilled') {
+          setComparisons(comparisonsResult.value);
+        } else {
+          toast({ title: 'Error', description: 'Failed to load comparisons', variant: 'destructive' });
+        }
       } finally {
         setLoading(false);
       }
@@ -83,6 +91,9 @@ export default function AnalyticsPage() {
         </div>
         <div className="flex items-center gap-4 flex-wrap">
           <DateRangeFilter onFilter={handleFilterChange} />
+          <span className="text-xs text-muted-foreground">
+            Date filter applies to overview metrics only
+          </span>
           <Button
             variant="outline"
             size="sm"

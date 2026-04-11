@@ -48,12 +48,12 @@ export function OverviewCards({ data }: OverviewCardsProps) {
     },
     {
       title: 'Estimated Cost',
-      value: `$${data.estimatedCostUsd.toFixed(2)}`,
+      value: `$${(data.estimatedCostUsd ?? 0).toFixed(2)}`,
       icon: Coins,
     },
     {
       title: 'Avg Rounds to Consensus',
-      value: data.avgRoundsToConsensus.toFixed(1),
+      value: (data.avgRoundsToConsensus ?? 0).toFixed(1),
       icon: Target,
     },
   ];

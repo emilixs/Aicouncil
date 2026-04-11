@@ -12,10 +12,14 @@ export function DateRangeFilter({ onFilter }: DateRangeFilterProps) {
   const [to, setTo] = useState('');
 
   const handleApply = () => {
-    onFilter({
-      from: from || undefined,
-      to: to || undefined,
-    });
+    let fromVal = from || undefined;
+    let toVal = to || undefined;
+    if (fromVal && toVal && fromVal > toVal) {
+      [fromVal, toVal] = [toVal, fromVal];
+      setFrom(fromVal);
+      setTo(toVal);
+    }
+    onFilter({ from: fromVal, to: toVal });
   };
 
   const handleClear = () => {
@@ -31,7 +35,7 @@ export function DateRangeFilter({ onFilter }: DateRangeFilterProps) {
         type="date"
         value={from}
         onChange={(e) => setFrom(e.target.value)}
-        className="rounded-md border bg-background px-3 py-1.5 text-sm"
+        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         aria-label="From date"
       />
       <span className="text-sm text-muted-foreground">to</span>
@@ -39,7 +43,7 @@ export function DateRangeFilter({ onFilter }: DateRangeFilterProps) {
         type="date"
         value={to}
         onChange={(e) => setTo(e.target.value)}
-        className="rounded-md border bg-background px-3 py-1.5 text-sm"
+        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         aria-label="To date"
       />
       <Button variant="outline" size="sm" onClick={handleApply}>
