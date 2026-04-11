@@ -23,6 +23,8 @@ import {
   DiscussionEndedEvent,
   DiscussionErrorEvent,
   ExpertTurnStartEvent,
+  DiscussionPausedEvent,
+  DiscussionResumedEvent,
 } from '../events/discussion.events';
 import {
   COMPARISON_EVENTS,
@@ -205,6 +207,16 @@ export class DiscussionGateway
       });
     });
 
+    this.eventEmitter.on(DISCUSSION_EVENTS.SESSION_PAUSED, (event: DiscussionPausedEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('discussion-paused', { sessionId: event.sessionId });
+    });
+
+    this.eventEmitter.on(DISCUSSION_EVENTS.SESSION_RESUMED, (event: DiscussionResumedEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('discussion-resumed', { sessionId: event.sessionId });
+    });
+
     // Comparison events
     this.eventEmitter.on(COMPARISON_EVENTS.COMPARISON_STARTED, (event: ComparisonStartedEvent) => {
       const roomName = `session:${event.sessionId}`;
@@ -327,6 +339,78 @@ export class DiscussionGateway
       this.logger.error('Error in handleIntervention', error);
       client.emit('error', {
         error: error.message || 'Failed to queue intervention',
+      });
+    }
+  }
+
+  @SubscribeMessage('pause-discussion')
+  @UseGuards(WsAuthGuard)
+  async handlePauseDiscussion(
+    @MessageBody() data: { sessionId: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    try {
+      const { sessionId } = data;
+      const userSessionId = client.data.user?.sessionId;
+
+      if (sessionId !== userSessionId) {
+        client.emit('error', { error: 'Session ID mismatch' });
+        return;
+      }
+
+      await this.councilService.pauseDiscussion(sessionId);
+    } catch (error) {
+      this.logger.error('Error in handlePauseDiscussion', error);
+      client.emit('error', {
+        error: error.message || 'Failed to pause discussion',
+      });
+    }
+  }
+
+  @SubscribeMessage('resume-discussion')
+  @UseGuards(WsAuthGuard)
+  async handleResumeDiscussion(
+    @MessageBody() data: { sessionId: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    try {
+      const { sessionId } = data;
+      const userSessionId = client.data.user?.sessionId;
+
+      if (sessionId !== userSessionId) {
+        client.emit('error', { error: 'Session ID mismatch' });
+        return;
+      }
+
+      await this.councilService.resumeDiscussion(sessionId);
+    } catch (error) {
+      this.logger.error('Error in handleResumeDiscussion', error);
+      client.emit('error', {
+        error: error.message || 'Failed to resume discussion',
+      });
+    }
+  }
+
+  @SubscribeMessage('stop-discussion')
+  @UseGuards(WsAuthGuard)
+  async handleStopDiscussion(
+    @MessageBody() data: { sessionId: string },
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    try {
+      const { sessionId } = data;
+      const userSessionId = client.data.user?.sessionId;
+
+      if (sessionId !== userSessionId) {
+        client.emit('error', { error: 'Session ID mismatch' });
+        return;
+      }
+
+      await this.councilService.stopDiscussion(sessionId);
+    } catch (error) {
+      this.logger.error('Error in handleStopDiscussion', error);
+      client.emit('error', {
+        error: error.message || 'Failed to stop discussion',
       });
     }
   }

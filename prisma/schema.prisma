@@ -13,6 +13,7 @@ datasource db {
 enum SessionStatus {
   PENDING
   ACTIVE
+  PAUSED
   COMPLETED
   CANCELLED
 }
