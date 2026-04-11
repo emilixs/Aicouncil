@@ -244,7 +244,13 @@ export class SessionService {
       case SessionStatus.PENDING:
         return newStatus === SessionStatus.ACTIVE || newStatus === SessionStatus.CANCELLED;
       case SessionStatus.ACTIVE:
-        return newStatus === SessionStatus.COMPLETED || newStatus === SessionStatus.CANCELLED;
+        return (
+          newStatus === SessionStatus.COMPLETED ||
+          newStatus === SessionStatus.CANCELLED ||
+          newStatus === SessionStatus.PAUSED
+        );
+      case SessionStatus.PAUSED:
+        return newStatus === SessionStatus.ACTIVE || newStatus === SessionStatus.CANCELLED;
       case SessionStatus.COMPLETED:
       case SessionStatus.CANCELLED:
         // Terminal states - no transitions allowed
@@ -266,7 +272,9 @@ export class SessionService {
       case SessionStatus.PENDING:
         return [SessionStatus.ACTIVE, SessionStatus.CANCELLED];
       case SessionStatus.ACTIVE:
-        return [SessionStatus.COMPLETED, SessionStatus.CANCELLED];
+        return [SessionStatus.COMPLETED, SessionStatus.CANCELLED, SessionStatus.PAUSED];
+      case SessionStatus.PAUSED:
+        return [SessionStatus.ACTIVE, SessionStatus.CANCELLED];
       case SessionStatus.COMPLETED:
       case SessionStatus.CANCELLED:
         return [];

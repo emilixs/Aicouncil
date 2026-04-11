@@ -7,6 +7,8 @@ export const DISCUSSION_EVENTS = {
   MESSAGE_CREATED: 'discussion.message.created',
   CONSENSUS_REACHED: 'discussion.consensus.reached',
   SESSION_ENDED: 'discussion.session.ended',
+  SESSION_PAUSED: 'discussion.session.paused',
+  SESSION_RESUMED: 'discussion.session.resumed',
   ERROR: 'discussion.error',
   EXPERT_TURN_START: 'discussion.expert.turn.start',
 } as const;
@@ -34,7 +36,7 @@ export interface DiscussionConsensusEvent {
 export interface DiscussionEndedEvent {
   sessionId: string;
   consensusReached: boolean;
-  reason: 'consensus' | 'max_messages' | 'cancelled';
+  reason: 'consensus' | 'max_messages' | 'cancelled' | 'stopped';
   messageCount: number;
 }
 

@@ -89,6 +89,7 @@ export class SessionResponseDto {
     const statusDisplayMap: Record<SessionStatus, string> = {
       [SessionStatus.PENDING]: 'pending',
       [SessionStatus.ACTIVE]: 'active',
+      [SessionStatus.PAUSED]: 'paused',
       [SessionStatus.COMPLETED]: 'concluded',
       [SessionStatus.CANCELLED]: 'cancelled',
     };

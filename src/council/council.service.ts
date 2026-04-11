@@ -29,6 +29,8 @@ import {
 export class CouncilService {
   private readonly logger = new Logger(CouncilService.name);
   private interventionQueues: Map<string, Array<{ content: string; userId?: string }>> = new Map();
+  private controlSignals: Map<string, 'pause' | 'stop'> = new Map();
+  private pauseResolvers: Map<string, () => void> = new Map();
 
   constructor(
     private readonly sessionService: SessionService,
@@ -38,7 +40,7 @@ export class CouncilService {
   ) {}
 
   /**
-   * Comment 4: Sleep utility for inter-turn delay
+   * Sleep utility for inter-turn delay
    * @param ms - Milliseconds to sleep
    */
   private sleep(ms: number): Promise<void> {
@@ -121,10 +123,67 @@ export class CouncilService {
   }
 
   /**
-   * Start a multi-agent discussion for a session
+   * Pause an active discussion. The loop will stop after the current turn.
+   * @param sessionId - The session ID
+   * @throws BadRequestException if session is not ACTIVE
+   */
+  async pauseDiscussion(sessionId: string): Promise<void> {
+    const session = await this.sessionService.findOne(sessionId);
+    if (session.status !== SessionStatus.ACTIVE) {
+      throw new BadRequestException(
+        `Cannot pause discussion: session status is ${session.status}. Must be ACTIVE.`,
+      );
+    }
+    this.controlSignals.set(sessionId, 'pause');
+  }
+
+  /**
+   * Stop an active or paused discussion. Transitions to CANCELLED.
+   * @param sessionId - The session ID
+   * @throws BadRequestException if session is not ACTIVE or PAUSED
+   */
+  async stopDiscussion(sessionId: string): Promise<void> {
+    const session = await this.sessionService.findOne(sessionId);
+    if (session.status !== SessionStatus.ACTIVE && session.status !== SessionStatus.PAUSED) {
+      throw new BadRequestException(
+        `Cannot stop discussion: session status is ${session.status}. Must be ACTIVE or PAUSED.`,
+      );
+    }
+    this.controlSignals.set(sessionId, 'stop');
+    // If paused, resolve the pause promise so the loop can process the stop signal
+    const resolver = this.pauseResolvers.get(sessionId);
+    if (resolver) {
+      resolver();
+    }
+  }
+
+  /**
+   * Resume a paused discussion.
+   * @param sessionId - The session ID
+   * @throws BadRequestException if session is not PAUSED
+   */
+  async resumeDiscussion(sessionId: string): Promise<void> {
+    const session = await this.sessionService.findOne(sessionId);
+    if (session.status !== SessionStatus.PAUSED) {
+      throw new BadRequestException(
+        `Cannot resume discussion: session status is ${session.status}. Must be PAUSED.`,
+      );
+    }
+    await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
+    this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_RESUMED, { sessionId });
+    // Resolve the pause promise to let the loop continue
+    const resolver = this.pauseResolvers.get(sessionId);
+    if (resolver) {
+      resolver();
+    }
+  }
+
+  /**
+   * Start a multi-agent discussion for a session.
+   * Returns immediately after transitioning to ACTIVE; the loop runs in background.
    *
    * @param sessionId - The session ID to start
-   * @returns The completed session with final status
+   * @returns The session in ACTIVE status
    * @throws BadRequestException if session is not in PENDING status
    */
   async startDiscussion(sessionId: string): Promise<SessionResponseDto> {
@@ -137,56 +196,100 @@ export class CouncilService {
       );
     }
 
-    try {
-      // Comment 5: Use experts directly from session (remove redundant re-fetching)
-      const experts = session.experts;
+    const experts = session.experts;
 
-      // Comment 1: Validate that session has experts
-      if (experts.length === 0) {
+    if (experts.length === 0) {
+      throw new BadRequestException(
+        'Cannot start discussion for session with no experts. Session must have at least one expert.',
+      );
+    }
+
+    // Pre-validate expert configs and API keys before switching session to ACTIVE
+    this.logger.log(`Validating ${experts.length} expert configurations...`);
+    for (const expert of experts) {
+      const expertConfig = plainToInstance(LLMConfig, expert.config);
+      const validationErrors = await validate(expertConfig);
+
+      if (validationErrors.length > 0 || !expertConfig.model) {
         throw new BadRequestException(
-          'Cannot start discussion for session with no experts. Session must have at least one expert.',
+          `Expert "${expert.name}" (${expert.id}) has invalid config. Missing or invalid required field: model`,
         );
       }
 
-      // Comment 1: Pre-validate expert configs and API keys before switching session to ACTIVE
-      this.logger.log(`Validating ${experts.length} expert configurations...`);
-      for (const expert of experts) {
-        // Transform and validate LLMConfig
-        const expertConfig = plainToInstance(LLMConfig, expert.config);
-        const validationErrors = await validate(expertConfig);
-
-        if (validationErrors.length > 0 || !expertConfig.model) {
-          throw new BadRequestException(
-            `Expert "${expert.name}" (${expert.id}) has invalid config. Missing or invalid required field: model`,
-          );
-        }
-
-        // Verify API key is present by attempting to create driver
-        try {
-          this.driverFactory.createDriver(expert.driverType);
-        } catch (error) {
-          throw new BadRequestException(
-            `Expert "${expert.name}" (${expert.id}) cannot be initialized: ${error.message}`,
-          );
-        }
+      try {
+        this.driverFactory.createDriver(expert.driverType);
+      } catch (error) {
+        throw new BadRequestException(
+          `Expert "${expert.name}" (${expert.id}) cannot be initialized: ${error.message}`,
+        );
       }
-      this.logger.log(`All expert configurations validated successfully`);
+    }
+    this.logger.log(`All expert configurations validated successfully`);
 
-      // Transition session to ACTIVE only after all validations pass
-      await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
-      this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
+    // Transition session to ACTIVE
+    await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
+    this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
 
-      this.logger.log(`Starting discussion with ${experts.length} experts`);
+    // Initialize intervention queue
+    this.interventionQueues.set(sessionId, []);
 
-      // Initialize intervention queue for this session
-      this.interventionQueues.set(sessionId, []);
+    // Run discussion loop in background (fire-and-forget)
+    this.runDiscussionLoop(sessionId, session).catch((error) => {
+      this.logger.error(
+        `Background discussion loop error for session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
+    });
 
-      // Initialize discussion loop variables
-      let currentExpertIndex = 0;
-      let consensusReached = false;
+    // Return immediately
+    return await this.sessionService.findOne(sessionId);
+  }
 
-      // Main discussion loop
+  /**
+   * The main discussion loop, run in background after startDiscussion returns.
+   */
+  private async runDiscussionLoop(
+    sessionId: string,
+    session: SessionResponseDto,
+  ): Promise<void> {
+    const experts = session.experts;
+    let currentExpertIndex = 0;
+    let consensusReached = false;
+    let stopped = false;
+
+    try {
       while (!consensusReached) {
+        // Check control signals before each turn
+        const signal = this.controlSignals.get(sessionId);
+
+        if (signal === 'stop') {
+          this.controlSignals.delete(sessionId);
+          stopped = true;
+          break;
+        }
+
+        if (signal === 'pause') {
+          this.controlSignals.delete(sessionId);
+          // Transition to PAUSED
+          await this.sessionService.update(sessionId, { status: SessionStatus.PAUSED });
+          this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_PAUSED, { sessionId });
+
+          // Wait until resumed or stopped
+          await new Promise<void>((resolve) => {
+            this.pauseResolvers.set(sessionId, resolve);
+          });
+          this.pauseResolvers.delete(sessionId);
+
+          // After waking up, check if we should stop
+          const newSignal = this.controlSignals.get(sessionId);
+          if (newSignal === 'stop') {
+            this.controlSignals.delete(sessionId);
+            stopped = true;
+            break;
+          }
+          continue;
+        }
+
         // Process any queued interventions before expert turn
         await this.processInterventions(sessionId);
 
@@ -223,12 +326,11 @@ export class CouncilService {
           recentMessages,
         );
 
-        // Comment 2: Handle per-expert LLM errors gracefully
         try {
           // Create LLM driver for the expert
           const driver = this.driverFactory.createDriver(currentExpert.driverType);
 
-          // Transform config (validation already done during pre-validation)
+          // Transform config
           const expertConfig = plainToInstance(LLMConfig, currentExpert.config);
 
           // Get response from LLM
@@ -237,7 +339,13 @@ export class CouncilService {
             `Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`,
           );
 
-          // Comment 5: Guard against empty or whitespace-only LLM responses
+          // Check control signals before creating message
+          const midTurnSignal = this.controlSignals.get(sessionId);
+          if (midTurnSignal === 'pause' || midTurnSignal === 'stop') {
+            continue; // Let the top of the loop handle it
+          }
+
+          // Guard against empty or whitespace-only LLM responses
           const trimmedContent = response.content.trim();
           if (!trimmedContent) {
             this.logger.warn(
@@ -284,7 +392,7 @@ export class CouncilService {
             expertId: currentExpert.id,
           } as DiscussionErrorEvent);
 
-          // Comment 2: Handle transient errors gracefully without cancelling session
+          // Handle transient errors gracefully without cancelling session
           const isTransientError =
             error.name === 'LLMRateLimitException' ||
             error.name === 'LLMTimeoutException' ||
@@ -294,9 +402,7 @@ export class CouncilService {
             this.logger.warn(
               `Transient error for expert ${currentExpert.name}: ${error.message}. Continuing to next expert.`,
             );
-            // Continue to next expert without throwing
           } else {
-            // Fatal errors (authentication, invalid config, etc.) should still throw
             this.logger.error(
               `Fatal error for expert ${currentExpert.name}: ${error.message}`,
               error.stack,
@@ -308,35 +414,49 @@ export class CouncilService {
         // Move to next expert
         currentExpertIndex++;
 
-        // Comment 4: Add small inter-turn delay to reduce provider rate-limit risk
-        await this.sleep(200); // 200ms delay between turns
+        // Check signals before sleeping
+        const endTurnSignal = this.controlSignals.get(sessionId);
+        if (endTurnSignal === 'pause' || endTurnSignal === 'stop') {
+          continue; // Skip sleep, go straight to signal handling at top of loop
+        }
+
+        // Add small inter-turn delay to reduce provider rate-limit risk
+        await this.sleep(200);
       }
 
-      // Conclude the session
-      await this.concludeSession(sessionId, consensusReached);
+      if (stopped) {
+        // Stop: transition to CANCELLED
+        await this.sessionService.update(sessionId, { status: SessionStatus.CANCELLED });
 
-      // Get final message count
-      const finalMessageCount = await this.messageService.countBySession(sessionId);
+        const finalMessageCount = await this.messageService.countBySession(sessionId);
+        this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_ENDED, {
+          sessionId,
+          consensusReached: false,
+          reason: 'stopped',
+          messageCount: finalMessageCount,
+        } as DiscussionEndedEvent);
+      } else {
+        // Normal completion
+        await this.concludeSession(sessionId, consensusReached);
 
-      // Emit session ended event
-      const endReason = consensusReached
-        ? 'consensus'
-        : finalMessageCount >= session.maxMessages
-          ? 'max_messages'
-          : 'cancelled';
+        const finalMessageCount = await this.messageService.countBySession(sessionId);
+        const endReason = consensusReached
+          ? 'consensus'
+          : finalMessageCount >= session.maxMessages
+            ? 'max_messages'
+            : 'cancelled';
 
-      this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_ENDED, {
-        sessionId,
-        consensusReached,
-        reason: endReason,
-        messageCount: finalMessageCount,
-      } as DiscussionEndedEvent);
+        this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_ENDED, {
+          sessionId,
+          consensusReached,
+          reason: endReason,
+          messageCount: finalMessageCount,
+        } as DiscussionEndedEvent);
+      }
 
-      // Cleanup intervention queue
+      // Cleanup
       this.interventionQueues.delete(sessionId);
-
-      // Return final session state
-      return await this.sessionService.findOne(sessionId);
+      this.controlSignals.delete(sessionId);
     } catch (error) {
       this.logger.error(
         `Error during discussion in session ${sessionId}: ${error.message}`,
@@ -356,21 +476,14 @@ export class CouncilService {
         this.logger.error(`Failed to cancel session ${sessionId}: ${updateError.message}`);
       }
 
-      // Cleanup intervention queue
+      // Cleanup
       this.interventionQueues.delete(sessionId);
-
-      throw error;
+      this.controlSignals.delete(sessionId);
     }
   }
 
   /**
    * Build context messages for an expert's turn
-   *
-   * @param session - The current session
-   * @param currentExpert - The expert taking the current turn
-   * @param allExperts - All experts in the session
-   * @param recentMessages - Recent messages from the discussion
-   * @returns Array of LLM messages for context
    */
   private buildExpertContext(
     session: SessionResponseDto,
@@ -378,7 +491,6 @@ export class CouncilService {
     allExperts: ExpertResponseDto[],
     recentMessages: MessageResponseDto[],
   ): LLMMessage[] {
-    // Build system message with expert's role and instructions
     const expertList = allExperts
       .map((expert) => `- ${expert.name} (${expert.specialty})`)
       .join('\n');
@@ -397,7 +509,6 @@ Instructions:
 You are participating in a collaborative discussion with other experts. Work towards consensus on the problem statement. When consensus is reached, explicitly state "I agree" or "consensus reached" in your response. You can reference other experts by name in your discussion.`,
     };
 
-    // Convert recent messages to LLM format
     const conversationMessages: LLMMessage[] = recentMessages.map((msg) => {
       const expertPrefix = msg.expertName ? `[${msg.expertName}] ` : '';
       return {
@@ -411,9 +522,6 @@ You are participating in a collaborative discussion with other experts. Work tow
 
   /**
    * Map Prisma MessageRole to LLM message role
-   *
-   * @param role - Prisma MessageRole enum value
-   * @returns LLM message role
    */
   private mapMessageRoleToLLMRole(role: MessageRole): 'user' | 'assistant' | 'system' {
     switch (role) {
@@ -430,12 +538,8 @@ You are participating in a collaborative discussion with other experts. Work tow
 
   /**
    * Detect if consensus has been reached based on message content
-   *
-   * @param messageContent - The message content to analyze
-   * @returns True if consensus keywords are detected
    */
   private detectConsensus(messageContent: string): boolean {
-    // Comment 2: Extended consensus detection keywords
     const keywords = [
       'i agree',
       'consensus reached',
@@ -454,9 +558,6 @@ You are participating in a collaborative discussion with other experts. Work tow
 
   /**
    * Conclude a session by updating its status and consensus flag
-   *
-   * @param sessionId - The session ID to conclude
-   * @param consensusReached - Whether consensus was reached
    */
   private async concludeSession(sessionId: string, consensusReached: boolean): Promise<void> {
     try {
@@ -467,11 +568,8 @@ You are participating in a collaborative discussion with other experts. Work tow
 
       this.logger.log(`Session ${sessionId} concluded. Consensus: ${consensusReached}`);
     } catch (error) {
-      // Comment 3: Handle gracefully - only log error, don't propagate
-      // This prevents transient DB failures from flipping completed discussions to CANCELLED
       this.logger.error(`Error concluding session ${sessionId}: ${error.message}`, error.stack);
 
-      // Emit ERROR event
       this.eventEmitter.emit(DISCUSSION_EVENTS.ERROR, {
         sessionId,
         error: error.message,

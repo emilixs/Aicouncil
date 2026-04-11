@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AppController } from './app.controller';
@@ -9,6 +9,7 @@ import { ExpertModule } from './expert/expert.module';
 import { SessionModule } from './session/session.module';
 import { MessageModule } from './message/message.module';
 import { CouncilModule } from './council/council.module';
+import { PrismaService } from './common/prisma.service';
 
 @Module({
   imports: [
@@ -27,4 +28,25 @@ import { CouncilModule } from './council/council.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements OnApplicationBootstrap {
+  private readonly logger = new Logger(AppModule.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    const result = await this.prisma.session.updateMany({
+      where: {
+        status: { in: ['ACTIVE', 'PAUSED'] as any },
+      },
+      data: {
+        status: 'CANCELLED' as any,
+      },
+    });
+
+    if (result.count > 0) {
+      this.logger?.warn(
+        `Crash recovery: marked ${result.count} orphaned ACTIVE/PAUSED sessions as CANCELLED`,
+      );
+    }
+  }
+}
