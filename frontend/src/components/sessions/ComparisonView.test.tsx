@@ -81,9 +81,9 @@ describe('ComparisonView', () => {
       />,
     );
 
-    // Each expert should have a column with their name
-    expect(screen.getByText('GPT Expert')).toBeInTheDocument();
-    expect(screen.getByText('Claude Expert')).toBeInTheDocument();
+    // Each expert should have a column with their name (also in summary table)
+    expect(screen.getAllByText('GPT Expert').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Claude Expert').length).toBeGreaterThanOrEqual(1);
 
     // Each expert's response content should be displayed
     expect(screen.getByText(/GPT response here/)).toBeInTheDocument();
@@ -118,17 +118,17 @@ describe('ComparisonView', () => {
       />,
     );
 
-    // Duration should be displayed (e.g., "1.5s" or "1500ms")
-    expect(screen.getByText(/1\.5s|1500/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.95s|950/)).toBeInTheDocument();
+    // Duration should be displayed (in card metrics and summary table)
+    expect(screen.getAllByText(/1\.5s|1500/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/0\.95s|950/).length).toBeGreaterThanOrEqual(1);
 
     // Token counts should be displayed
-    expect(screen.getByText(/300/)).toBeInTheDocument();
-    expect(screen.getByText(/220/)).toBeInTheDocument();
+    expect(screen.getAllByText(/300/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/220/).length).toBeGreaterThanOrEqual(1);
 
     // Model names should be displayed
-    expect(screen.getByText(/gpt-4/)).toBeInTheDocument();
-    expect(screen.getByText(/claude-sonnet-4-20250514/)).toBeInTheDocument();
+    expect(screen.getAllByText(/gpt-4/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/claude-sonnet-4-20250514/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('should show loading spinners for experts without responses yet', () => {
@@ -195,9 +195,9 @@ describe('ComparisonView', () => {
       />,
     );
 
-    // All three experts should be rendered
-    expect(screen.getByText('GPT Expert')).toBeInTheDocument();
-    expect(screen.getByText('Claude Expert')).toBeInTheDocument();
-    expect(screen.getByText('Grok Expert')).toBeInTheDocument();
+    // All three experts should be rendered (also in summary table)
+    expect(screen.getAllByText('GPT Expert').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Claude Expert').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Grok Expert').length).toBeGreaterThanOrEqual(1);
   });
 });
