@@ -12,10 +12,16 @@ export enum MessageRole {
   SYSTEM = 'SYSTEM',
 }
 
+export enum SessionType {
+  DISCUSSION = 'DISCUSSION',
+  COMPARISON = 'COMPARISON',
+}
+
 export interface CreateSessionDto {
   problemStatement: string;
   expertIds: string[];
   maxMessages?: number;
+  type?: SessionType;
 }
 
 export interface SessionResponse {
@@ -23,6 +29,7 @@ export interface SessionResponse {
   problemStatement: string;
   status?: SessionStatus;
   statusDisplay?: string;
+  type?: SessionType;
   maxMessages: number;
   consensusReached: boolean;
   createdAt: string;
@@ -41,9 +48,11 @@ export interface MessageResponse {
   timestamp: string;
   expertName: string | null;
   expertSpecialty: string | null;
+  durationMs?: number | null;
+  tokenCount?: number | null;
+  modelUsed?: string | null;
 }
 
 export interface TokenResponse {
   token: string;
 }
-

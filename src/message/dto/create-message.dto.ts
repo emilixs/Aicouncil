@@ -60,4 +60,23 @@ export class CreateMessageDto {
   @IsOptional()
   @IsString()
   finishReason?: string;
+
+  /**
+   * Response duration in milliseconds (comparison mode)
+   */
+  @IsOptional()
+  durationMs?: number;
+
+  /**
+   * Total token count from LLM response (comparison mode)
+   */
+  @IsOptional()
+  tokenCount?: number;
+
+  /**
+   * Model identifier used for this response (comparison mode)
+   */
+  @IsOptional()
+  @IsString()
+  modelUsed?: string;
 }

@@ -50,6 +50,15 @@ export class MessageResponseDto {
   @Expose()
   finishReason: string | null;
 
+  @Expose()
+  durationMs?: number | null;
+
+  @Expose()
+  tokenCount?: number | null;
+
+  @Expose()
+  modelUsed?: string | null;
+
   constructor(partial: Partial<MessageResponseDto>) {
     Object.assign(this, partial);
   }
@@ -72,6 +81,9 @@ export class MessageResponseDto {
       model: (message as any).model ?? null,
       responseTimeMs: (message as any).responseTimeMs ?? null,
       finishReason: (message as any).finishReason ?? null,
+      durationMs: (message as any).durationMs ?? null,
+      tokenCount: (message as any).tokenCount ?? null,
+      modelUsed: (message as any).modelUsed ?? null,
     });
   }
 }

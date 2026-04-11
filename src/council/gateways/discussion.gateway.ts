@@ -12,6 +12,7 @@ import { UseGuards, OnModuleInit, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CouncilService } from '../council.service';
+import { ComparisonService } from '../comparison.service';
 import { AuthService } from '../../common/auth/auth.service';
 import { WsAuthGuard } from '../../common/auth/ws-auth.guard';
 import {
@@ -22,6 +23,12 @@ import {
   DiscussionErrorEvent,
   ExpertTurnStartEvent,
 } from '../events/discussion.events';
+import {
+  COMPARISON_EVENTS,
+  ComparisonResponseEvent,
+  ComparisonAllReceivedEvent,
+  ComparisonErrorEvent,
+} from '../events/comparison.events';
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -51,6 +58,7 @@ export class DiscussionGateway
 
   constructor(
     private readonly councilService: CouncilService,
+    private readonly comparisonService: ComparisonService,
     private readonly authService: AuthService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -192,6 +200,22 @@ export class DiscussionGateway
         expertName: event.expertName,
         turnNumber: event.turnNumber,
       });
+    });
+
+    // Comparison events
+    this.eventEmitter.on(COMPARISON_EVENTS.RESPONSE_RECEIVED, (event: ComparisonResponseEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('comparison-response', event);
+    });
+
+    this.eventEmitter.on(COMPARISON_EVENTS.ALL_RESPONSES_RECEIVED, (event: ComparisonAllReceivedEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('comparison-complete', event);
+    });
+
+    this.eventEmitter.on(COMPARISON_EVENTS.COMPARISON_ERROR, (event: ComparisonErrorEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('comparison-error', event);
     });
 
     this.logger.log('Event listeners registered');
