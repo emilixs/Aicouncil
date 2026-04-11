@@ -12,6 +12,7 @@ import { SessionModule } from './session/session.module';
 import { MessageModule } from './message/message.module';
 import { CouncilModule } from './council/council.module';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
+import { HttpAuthGuard } from './common/auth/http-auth.guard';
 import { validate } from './config/env.validation';
 
 @Module({
@@ -46,6 +47,10 @@ import { validate } from './config/env.validation';
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: HttpAuthGuard,
     },
   ],
 })
