@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
@@ -33,7 +33,7 @@ async function bootstrap() {
 
   await app.listen(port, '0.0.0.0');
 
-  console.log(`🚀 AI Council API is running on: http://localhost:${port}`);
+  Logger.log(`AI Council API is running on: http://localhost:${port}`, 'Bootstrap');
 }
 
 bootstrap();
