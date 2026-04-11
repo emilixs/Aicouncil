@@ -39,6 +39,7 @@
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/platform-fastify": "^10.3.0",
     "@nestjs/platform-socket.io": "^10.3.0",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^10.3.0",
     "@prisma/client": "^6.18.0",
     "class-transformer": "^0.5.1",
