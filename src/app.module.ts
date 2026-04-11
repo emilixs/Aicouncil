@@ -9,12 +9,14 @@ import { ExpertModule } from './expert/expert.module';
 import { SessionModule } from './session/session.module';
 import { MessageModule } from './message/message.module';
 import { CouncilModule } from './council/council.module';
+import { validate } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate,
     }),
     EventEmitterModule.forRoot(),
     CommonModule,
