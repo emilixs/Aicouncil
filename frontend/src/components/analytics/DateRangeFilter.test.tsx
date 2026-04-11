@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DateRangeFilter } from './DateRangeFilter';
 
@@ -16,11 +16,8 @@ describe('DateRangeFilter', () => {
     render(<DateRangeFilter onFilter={onFilter} />);
     const user = userEvent.setup();
 
-    const fromInput = screen.getByLabelText('From date');
-    const toInput = screen.getByLabelText('To date');
-
-    await user.type(fromInput, '2026-01-01');
-    await user.type(toInput, '2026-04-01');
+    fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-01-01' } });
+    fireEvent.change(screen.getByLabelText('To date'), { target: { value: '2026-04-01' } });
     await user.click(screen.getByText('Apply'));
 
     expect(onFilter).toHaveBeenCalledWith({
@@ -34,7 +31,7 @@ describe('DateRangeFilter', () => {
     render(<DateRangeFilter onFilter={onFilter} />);
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText('From date'), '2026-01-01');
+    fireEvent.change(screen.getByLabelText('From date'), { target: { value: '2026-01-01' } });
     await user.click(screen.getByText('Apply'));
 
     // Clear button should appear after setting a value
