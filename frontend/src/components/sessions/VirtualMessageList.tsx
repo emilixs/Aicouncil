@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { MessageResponse, MessageRole } from "@/types";
+import { MessageResponse } from "@/types";
+import { MessageItem } from "@/components/sessions/MessageItem";
 
 interface VirtualMessageListProps {
   messages: MessageResponse[];
@@ -18,26 +19,6 @@ function MessageSkeleton() {
   );
 }
 
-function MessageItem({ message }: { message: MessageResponse }) {
-  return (
-    <div className="p-4 border-b">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="font-semibold">
-          {message.role === MessageRole.SYSTEM
-            ? "System"
-            : message.isIntervention
-              ? "Intervention"
-              : message.expertName ?? "Unknown"}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {new Date(message.timestamp).toLocaleTimeString()}
-        </span>
-      </div>
-      <p className="text-sm">{message.content}</p>
-    </div>
-  );
-}
-
 export function VirtualMessageList({
   messages,
   loading,
@@ -48,7 +29,7 @@ export function VirtualMessageList({
     count: messages.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 80,
-    overscan: messages.length,
+    overscan: 5,
   });
 
   useEffect(() => {
