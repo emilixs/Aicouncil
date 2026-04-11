@@ -25,8 +25,8 @@ import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
       useFactory: (config: ConfigService) => [
         {
           name: 'default',
-          ttl: config.get<number>('RATE_LIMIT_TTL', 60000),
-          limit: config.get<number>('RATE_LIMIT_DEFAULT', 30),
+          ttl: Number(config.get('RATE_LIMIT_TTL', '60000')),
+          limit: Number(config.get('RATE_LIMIT_DEFAULT', '30')),
         },
       ],
     }),
