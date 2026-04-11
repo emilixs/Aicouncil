@@ -38,12 +38,14 @@ describe('HttpAuthGuard', () => {
     headers: Record<string, string> = {},
   ): ExecutionContext {
     const request = { headers, user: undefined };
+    const handler = jest.fn();
+    const klass = jest.fn();
     return {
       switchToHttp: () => ({
         getRequest: () => request,
       }),
-      getHandler: () => jest.fn(),
-      getClass: () => jest.fn(),
+      getHandler: () => handler,
+      getClass: () => klass,
     } as unknown as ExecutionContext;
   }
 
