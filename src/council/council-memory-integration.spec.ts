@@ -15,7 +15,7 @@ import { SessionService } from '../session/session.service';
 import { MessageService } from '../message/message.service';
 import { DriverFactory } from '../llm/factories/driver.factory';
 import { MemoryService } from '../memory/memory.service';
-import { SessionStatus } from '@prisma/client';
+import { SessionStatus, MemoryType } from '@prisma/client';
 
 const mockSessionService = {
   findOne: jest.fn(),
@@ -72,8 +72,8 @@ describe('CouncilService — Memory Integration', () => {
       const mockSession = {
         id: 'sess1',
         problemStatement: 'Design an API',
-        status: 'active',
-        statusDisplay: 'active',
+        status: SessionStatus.PENDING,
+        statusDisplay: 'pending',
         maxMessages: 20,
         consensusReached: false,
         experts: [
@@ -137,8 +137,8 @@ describe('CouncilService — Memory Integration', () => {
       const mockSession = {
         id: 'sess1',
         problemStatement: 'Design an API',
-        status: 'active',
-        statusDisplay: 'active',
+        status: SessionStatus.PENDING,
+        statusDisplay: 'pending',
         maxMessages: 20,
         consensusReached: false,
         experts: [
@@ -184,8 +184,8 @@ describe('CouncilService — Memory Integration', () => {
       const mockSession = {
         id: 'sess1',
         problemStatement: 'Design an API',
-        status: 'active',
-        statusDisplay: 'active',
+        status: SessionStatus.PENDING,
+        statusDisplay: 'pending',
         maxMessages: 20,
         consensusReached: false,
         experts: [
@@ -255,8 +255,8 @@ describe('CouncilService — Memory Integration', () => {
       const mockSession = {
         id: 'sess1',
         problemStatement: 'Design an API',
-        status: 'active',
-        statusDisplay: 'active',
+        status: SessionStatus.PENDING,
+        statusDisplay: 'pending',
         maxMessages: 20,
         consensusReached: false,
         experts: [

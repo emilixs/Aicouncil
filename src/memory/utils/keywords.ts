@@ -1,0 +1,23 @@
+const STOPWORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+  'of', 'with', 'by', 'from', 'is', 'it', 'as', 'be', 'was', 'are',
+  'were', 'been', 'has', 'have', 'had', 'do', 'does', 'did', 'will',
+  'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that',
+  'these', 'those', 'not', 'no', 'we', 'you', 'they', 'he', 'she',
+  'its', 'his', 'her', 'our', 'your', 'their', 'what', 'which', 'who',
+  'when', 'where', 'how', 'all', 'each', 'every', 'both', 'few', 'more',
+  'most', 'other', 'some', 'such', 'than', 'too', 'very', 'just', 'about',
+  'over', 'after', 'before', 'between', 'under', 'again', 'then', 'once',
+]);
+
+export function extractKeywords(text: string): string[] {
+  if (!text) return [];
+
+  const words = text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // strip punctuation
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+
+  return [...new Set(words)];
+}

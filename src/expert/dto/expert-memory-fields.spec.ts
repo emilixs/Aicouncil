@@ -4,6 +4,7 @@
  * Verifies that CreateExpertDto accepts memoryEnabled, memoryMaxEntries,
  * memoryMaxInject fields and that ExpertResponseDto exposes them.
  */
+import 'reflect-metadata';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { CreateExpertDto } from './create-expert.dto';

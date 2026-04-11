@@ -22,6 +22,15 @@ export class ExpertResponseDto {
   config: JsonValue;
 
   @Expose()
+  memoryEnabled: boolean;
+
+  @Expose()
+  memoryMaxEntries: number;
+
+  @Expose()
+  memoryMaxInject: number;
+
+  @Expose()
   createdAt: Date;
 
   @Expose()
@@ -39,6 +48,9 @@ export class ExpertResponseDto {
       systemPrompt: expert.systemPrompt,
       driverType: expert.driverType,
       config: expert.config,
+      memoryEnabled: expert.memoryEnabled,
+      memoryMaxEntries: expert.memoryMaxEntries,
+      memoryMaxInject: expert.memoryMaxInject,
       createdAt: expert.createdAt,
       updatedAt: expert.updatedAt,
     });

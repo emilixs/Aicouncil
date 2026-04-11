@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionService } from '../session/session.service';
 import { MessageService } from '../message/message.service';
 import { DriverFactory } from '../llm/factories/driver.factory';
+import { MemoryService } from '../memory/memory.service';
 import { SessionResponseDto } from '../session/dto';
 import { ExpertResponseDto } from '../expert/dto';
 import { MessageResponseDto } from '../message/dto';
@@ -35,6 +36,7 @@ export class CouncilService {
     private readonly messageService: MessageService,
     private readonly driverFactory: DriverFactory,
     private readonly eventEmitter: EventEmitter2,
+    private readonly memoryService: MemoryService,
   ) {}
 
   /**
@@ -204,12 +206,27 @@ export class CouncilService {
         const currentExpert = experts[currentExpertIndex % experts.length];
         this.logger.log(`Expert turn: ${currentExpert.name} (${currentExpert.specialty})`);
 
+        // Retrieve relevant memories if memory is enabled for this expert
+        let memoryText = '';
+        let injectedMemoryIds: string[] = [];
+        if ((currentExpert as any).memoryEnabled) {
+          const maxInject = (currentExpert as any).memoryMaxInject ?? 5;
+          const memResult = await this.memoryService.getRelevantMemories(
+            currentExpert.id,
+            session.problemStatement,
+            maxInject,
+          );
+          injectedMemoryIds = memResult.ids;
+          memoryText = this.memoryService.formatMemoriesForInjection(memResult.memories);
+        }
+
         // Emit expert turn start event
         this.eventEmitter.emit(DISCUSSION_EVENTS.EXPERT_TURN_START, {
           sessionId,
           expertId: currentExpert.id,
           expertName: currentExpert.name,
           turnNumber: currentExpertIndex + 1,
+          injectedMemoryIds,
         } as ExpertTurnStartEvent);
 
         // Retrieve recent messages for context
@@ -221,6 +238,7 @@ export class CouncilService {
           currentExpert,
           experts,
           recentMessages,
+          memoryText,
         );
 
         // Comment 2: Handle per-expert LLM errors gracefully
@@ -315,6 +333,19 @@ export class CouncilService {
       // Conclude the session
       await this.concludeSession(sessionId, consensusReached);
 
+      // Generate memory for each memory-enabled expert
+      for (const expert of experts) {
+        if ((expert as any).memoryEnabled) {
+          try {
+            await this.memoryService.generateSessionMemory(expert.id, sessionId);
+          } catch (error) {
+            this.logger.error(
+              `Failed to generate memory for expert ${expert.name}: ${error.message}`,
+            );
+          }
+        }
+      }
+
       // Get final message count
       const finalMessageCount = await this.messageService.countBySession(sessionId);
 
@@ -377,16 +408,19 @@ export class CouncilService {
     currentExpert: ExpertResponseDto,
     allExperts: ExpertResponseDto[],
     recentMessages: MessageResponseDto[],
+    memoryText: string = '',
   ): LLMMessage[] {
     // Build system message with expert's role and instructions
     const expertList = allExperts
       .map((expert) => `- ${expert.name} (${expert.specialty})`)
       .join('\n');
 
+    const memorySection = memoryText ? `\n\n${memoryText}\n` : '';
+
     const systemMessage: LLMMessage = {
       role: 'system',
       content: `${currentExpert.systemPrompt}
-
+${memorySection}
 Problem Statement:
 ${session.problemStatement}
 
