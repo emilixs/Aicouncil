@@ -21,12 +21,16 @@ interface ConsensusChartProps {
 }
 
 export function ConsensusChart({ comparisons }: ConsensusChartProps) {
-  const data = comparisons.map((c) => ({
-    name: c.expertCombination.join(', ').slice(0, 30),
-    consensusRate: Math.round(c.consensusRate * 100),
-    avgRounds: c.avgRounds,
-    sessions: c.sessionCount,
-  }));
+  const data = comparisons.map((c) => {
+    const fullName = c.expertCombination.join(', ');
+    return {
+      name: fullName.length > 30 ? fullName.slice(0, 27) + '...' : fullName,
+      fullName,
+      consensusRate: Math.round(c.consensusRate * 100),
+      avgRounds: c.avgRounds,
+      sessions: c.sessionCount,
+    };
+  });
 
   return (
     <Card>
@@ -53,7 +57,12 @@ export function ConsensusChart({ comparisons }: ConsensusChartProps) {
               />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
+              <Tooltip
+                labelFormatter={(_, payload) => {
+                  const item = payload?.[0]?.payload;
+                  return item?.fullName ?? '';
+                }}
+              />
               <Legend />
               <Bar
                 yAxisId="left"

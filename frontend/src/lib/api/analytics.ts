@@ -3,7 +3,6 @@ import type {
   OverviewStats,
   SessionAnalytics,
   ExpertStats,
-  ExpertDetailAnalytics,
   ComparisonStats,
   DateRangeFilter,
 } from '@/types/analytics';
@@ -42,15 +41,6 @@ export async function getAnalyticsExperts(
   const response = await apiClient.get<ExpertStats[]>('/analytics/experts', {
     params,
   });
-  return response.data;
-}
-
-export async function getAnalyticsExpert(
-  id: string,
-): Promise<ExpertDetailAnalytics> {
-  const response = await apiClient.get<ExpertDetailAnalytics>(
-    `/analytics/experts/${id}`,
-  );
   return response.data;
 }
 

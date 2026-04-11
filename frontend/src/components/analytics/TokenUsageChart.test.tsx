@@ -57,4 +57,25 @@ describe('TokenUsageChart', () => {
     // The short one should appear as-is, the long one truncated
     expect(screen.queryByText('No data available')).not.toBeInTheDocument();
   });
+
+  it('shows truncation notice when more than 10 sessions', () => {
+    const manySessions: SessionAnalytics[] = Array.from({ length: 15 }, (_, i) => ({
+      sessionId: `s${i}`,
+      problemStatement: `Problem ${i}`,
+      status: 'COMPLETED',
+      totalTokens: 1000 * (i + 1),
+      totalRounds: 3,
+      estimatedCostUsd: 0.1,
+      consensusReached: true,
+      durationMs: 60000,
+      createdAt: '2026-04-01T00:00:00Z',
+    }));
+    render(<TokenUsageChart sessions={manySessions} />);
+    expect(screen.getByText('Showing 10 of 15 sessions')).toBeInTheDocument();
+  });
+
+  it('does not show truncation notice when 10 or fewer sessions', () => {
+    render(<TokenUsageChart sessions={sampleSessions} />);
+    expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
+  });
 });
