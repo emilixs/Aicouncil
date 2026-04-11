@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { SessionService } from './session.service';
 import { CreateSessionDto, SessionResponseDto } from './dto';
 import { MessageService } from '../message/message.service';
@@ -26,6 +27,7 @@ export class SessionController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   create(@Body() createSessionDto: CreateSessionDto): Promise<SessionResponseDto> {
     return this.sessionService.create(createSessionDto);
   }
@@ -69,6 +71,7 @@ export class SessionController {
    */
   @Post(':id/token')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async generateToken(
     @Param('id') id: string,
     @Body() body?: { userId?: string },

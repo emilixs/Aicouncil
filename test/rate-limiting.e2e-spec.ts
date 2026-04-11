@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NestFastifyApplication, FastifyAdapter } from '@nestjs/platform-fastify';
 import { ValidationPipe, HttpStatus } from '@nestjs/common';
+import { ThrottlerStorage } from '@nestjs/throttler';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/common/prisma.service';
 
@@ -197,6 +198,14 @@ describe('Rate Limiting (e2e)', () => {
   });
 
   describe('Rate limit headers on successful responses', () => {
+    beforeAll(async () => {
+      // Clear throttler storage so prior tests' request counts don't interfere
+      const throttlerStorage = app.get(ThrottlerStorage as any);
+      if (throttlerStorage?.storage) {
+        throttlerStorage.storage.clear();
+      }
+    });
+
     it('should include X-RateLimit-Limit header', async () => {
       const response = await app.inject({
         method: 'GET',
