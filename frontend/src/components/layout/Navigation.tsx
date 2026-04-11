@@ -12,6 +12,7 @@ export default function Navigation() {
     { path: '/', label: 'Home' },
     { path: '/experts', label: 'Experts' },
     { path: '/sessions', label: 'Sessions' },
+    { path: '/analytics', label: 'Analytics' },
   ];
 
   return (
