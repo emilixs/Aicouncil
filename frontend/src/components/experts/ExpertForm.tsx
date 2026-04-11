@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { expertFormSchema, ExpertFormValues } from "@/lib/validations/expert";
@@ -27,11 +28,12 @@ import {
 
 interface ExpertFormProps {
   expert?: ExpertResponse;
+  initialValues?: Partial<ExpertFormValues>;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
+export function ExpertForm({ expert, initialValues, onSuccess, onCancel }: ExpertFormProps) {
   const { toast } = useToast();
 
   const form = useForm<ExpertFormValues>({
@@ -46,13 +48,19 @@ export function ExpertForm({ expert, onSuccess, onCancel }: ExpertFormProps) {
           config: expert.config,
         }
       : {
-          name: "",
-          specialty: "",
-          systemPrompt: "",
-          driverType: DriverType.OPENAI,
-          config: DEFAULT_CONFIG[DriverType.OPENAI],
+          name: initialValues?.name ?? "",
+          specialty: initialValues?.specialty ?? "",
+          systemPrompt: initialValues?.systemPrompt ?? "",
+          driverType: initialValues?.driverType ?? DriverType.OPENAI,
+          config: initialValues?.config ?? DEFAULT_CONFIG[DriverType.OPENAI],
         },
   });
+
+  useEffect(() => {
+    if (initialValues) {
+      form.trigger();
+    }
+  }, []);
 
   const watchedDriverType = form.watch("driverType");
 
