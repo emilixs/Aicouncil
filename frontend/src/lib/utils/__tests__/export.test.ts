@@ -113,11 +113,15 @@ describe('downloadMarkdown', () => {
       click: clickSpy,
       setAttribute: vi.fn(),
     } as unknown as HTMLAnchorElement);
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
 
     downloadMarkdown('# content', 'test-session');
 
     expect(createElement).toHaveBeenCalledWith('a');
+    expect(appendChildSpy).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalledOnce();
+    expect(removeChildSpy).toHaveBeenCalled();
     expect(createObjectURL).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalled();
   });

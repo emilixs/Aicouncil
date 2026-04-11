@@ -7,7 +7,7 @@ import { DeleteExpertDialog } from "@/components/experts/DeleteExpertDialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, RefreshCw, Users } from "lucide-react";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function ExpertsPage() {
   const [experts, setExperts] = useState<ExpertResponse[]>([]);
