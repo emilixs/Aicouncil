@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SessionCard } from "@/components/sessions/SessionCard";
 import { SessionFormDialog } from "@/components/sessions/SessionFormDialog";
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw, Plus, MessageSquare } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function SessionsPage() {
   const navigate = useNavigate();
@@ -91,22 +92,13 @@ export default function SessionsPage() {
           ))}
         </div>
       ) : sessions.length === 0 ? (
-        // Empty state
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold">No sessions yet</h2>
-            <p className="text-muted-foreground">
-              Create your first discussion session to get started
-            </p>
-            <Button
-              onClick={() => setCreateDialogOpen(true)}
-              className="mt-4"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create First Session
-            </Button>
-          </div>
-        </div>
+        <EmptyState
+          title="No sessions yet"
+          description="Create your first discussion session to get started"
+          icon={<MessageSquare className="h-12 w-12" />}
+          actionLabel="Create Session"
+          onAction={() => setCreateDialogOpen(true)}
+        />
       ) : (
         // Sessions grid
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

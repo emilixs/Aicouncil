@@ -8,7 +8,7 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { UseGuards, OnModuleInit } from '@nestjs/common';
+import { UseGuards, OnModuleInit, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CouncilService } from '../council.service';
@@ -44,6 +44,8 @@ export class DiscussionGateway
 {
   @WebSocketServer()
   server: Server;
+
+  private readonly logger = new Logger(DiscussionGateway.name);
 
   private sessionSubscriptions: Map<string, Set<string>> = new Map();
 
@@ -98,7 +100,7 @@ export class DiscussionGateway
   handleConnection(client: AuthenticatedSocket) {
     try {
       if (!client.data.user) {
-        console.error('Client connected without user data');
+        this.logger.error('Client connected without user data');
         client.disconnect();
         return;
       }
@@ -118,12 +120,12 @@ export class DiscussionGateway
         subscriptions.add(client.id);
       }
 
-      console.log(`Client ${client.id} (user: ${userId}) connected to session ${sessionId}`);
+      this.logger.log(`Client ${client.id} (user: ${userId}) connected to session ${sessionId}`);
 
       // Emit connected event to client
       client.emit('connected', { sessionId });
     } catch (error) {
-      console.error('Error in handleConnection:', error);
+      this.logger.error('Error in handleConnection', error);
       client.disconnect();
     }
   }
@@ -143,10 +145,10 @@ export class DiscussionGateway
           }
         }
 
-        console.log(`Client ${client.id} disconnected from session ${sessionId}`);
+        this.logger.log(`Client ${client.id} disconnected from session ${sessionId}`);
       }
     } catch (error) {
-      console.error('Error in handleDisconnect:', error);
+      this.logger.error('Error in handleDisconnect', error);
     }
   }
 
@@ -192,7 +194,7 @@ export class DiscussionGateway
       });
     });
 
-    console.log('DiscussionGateway event listeners registered');
+    this.logger.log('Event listeners registered');
   }
 
   @SubscribeMessage('start-discussion')
@@ -215,7 +217,7 @@ export class DiscussionGateway
 
       // Start discussion in background (no await)
       this.councilService.startDiscussion(sessionId).catch((error) => {
-        console.error('Error starting discussion:', error);
+        this.logger.error('Error starting discussion', error);
         const roomName = `session:${sessionId}`;
         this.server.to(roomName).emit('error', {
           error: error.message || 'Failed to start discussion',
@@ -226,7 +228,7 @@ export class DiscussionGateway
       const roomName = `session:${sessionId}`;
       this.server.to(roomName).emit('discussion-started', { sessionId });
     } catch (error) {
-      console.error('Error in handleStartDiscussion:', error);
+      this.logger.error('Error in handleStartDiscussion', error);
       client.emit('error', {
         error: error.message || 'Failed to start discussion',
       });
@@ -278,7 +280,7 @@ export class DiscussionGateway
       // Emit intervention-queued to client
       client.emit('intervention-queued', { sessionId });
     } catch (error) {
-      console.error('Error in handleIntervention:', error);
+      this.logger.error('Error in handleIntervention', error);
       client.emit('error', {
         error: error.message || 'Failed to queue intervention',
       });
@@ -319,7 +321,7 @@ export class DiscussionGateway
       // Emit joined-session acknowledgment to client
       client.emit('joined-session', { sessionId });
     } catch (error) {
-      console.error('Error in handleJoinSession:', error);
+      this.logger.error('Error in handleJoinSession', error);
       client.emit('error', {
         error: error.message || 'Failed to join session',
       });
@@ -359,7 +361,7 @@ export class DiscussionGateway
       // Emit left-session to client
       client.emit('left-session', { sessionId });
     } catch (error) {
-      console.error('Error in handleLeaveSession:', error);
+      this.logger.error('Error in handleLeaveSession', error);
       client.emit('error', {
         error: error.message || 'Failed to leave session',
       });

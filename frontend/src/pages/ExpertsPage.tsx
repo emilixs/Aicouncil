@@ -6,7 +6,8 @@ import { ExpertFormDialog } from "@/components/experts/ExpertFormDialog";
 import { DeleteExpertDialog } from "@/components/experts/DeleteExpertDialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function ExpertsPage() {
   const [experts, setExperts] = useState<ExpertResponse[]>([]);
@@ -76,6 +77,14 @@ export default function ExpertsPage() {
         <div className="flex items-center justify-center h-64">
           <p className="text-muted-foreground">Loading experts...</p>
         </div>
+      ) : experts.length === 0 ? (
+        <EmptyState
+          title="No experts yet"
+          description="Create your first expert to get started"
+          icon={<Users className="h-12 w-12" />}
+          actionLabel="Create Expert"
+          onAction={() => setCreateDialogOpen(true)}
+        />
       ) : (
         <ExpertTable
           data={experts}

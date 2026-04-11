@@ -12,12 +12,14 @@ import { SessionModule } from './session/session.module';
 import { MessageModule } from './message/message.module';
 import { CouncilModule } from './council/council.module';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
+import { validate } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate,
     }),
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
