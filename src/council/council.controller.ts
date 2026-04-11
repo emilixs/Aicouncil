@@ -16,11 +16,12 @@ export class CouncilController {
   @Post(':id/start')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
-  async startDiscussion(@Param('id') id: string): Promise<SessionResponseDto | void> {
+  async startDiscussion(@Param('id') id: string): Promise<SessionResponseDto> {
     const session = await this.sessionService.findOne(id);
 
-    if ((session as any).type === 'COMPARISON') {
-      return this.comparisonService.startComparison(id);
+    if (session.type === 'COMPARISON') {
+      await this.comparisonService.startComparison(id);
+      return this.sessionService.findOne(id);
     }
 
     return this.councilService.startDiscussion(id);

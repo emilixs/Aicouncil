@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
+  Min,
   MinLength,
   MaxLength,
 } from 'class-validator';
@@ -65,12 +66,16 @@ export class CreateMessageDto {
    * Response duration in milliseconds (comparison mode)
    */
   @IsOptional()
+  @IsInt()
+  @Min(1)
   durationMs?: number;
 
   /**
    * Total token count from LLM response (comparison mode)
    */
   @IsOptional()
+  @IsInt()
+  @Min(0)
   tokenCount?: number;
 
   /**

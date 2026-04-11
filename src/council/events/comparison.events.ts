@@ -4,10 +4,18 @@ import { MessageResponseDto } from '../../message/dto/message-response.dto';
  * Comparison event names
  */
 export const COMPARISON_EVENTS = {
+  COMPARISON_STARTED: 'comparison.started',
   RESPONSE_RECEIVED: 'comparison.response.received',
   ALL_RESPONSES_RECEIVED: 'comparison.all.received',
   COMPARISON_ERROR: 'comparison.error',
 } as const;
+
+/**
+ * Event emitted when a comparison session starts
+ */
+export interface ComparisonStartedEvent {
+  sessionId: string;
+}
 
 /**
  * Event emitted when a single expert's comparison response is received

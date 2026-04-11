@@ -13,6 +13,7 @@ import { Server, Socket } from 'socket.io';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { CouncilService } from '../council.service';
 import { ComparisonService } from '../comparison.service';
+import { SessionService } from '../../session/session.service';
 import { AuthService } from '../../common/auth/auth.service';
 import { WsAuthGuard } from '../../common/auth/ws-auth.guard';
 import {
@@ -25,6 +26,7 @@ import {
 } from '../events/discussion.events';
 import {
   COMPARISON_EVENTS,
+  ComparisonStartedEvent,
   ComparisonResponseEvent,
   ComparisonAllReceivedEvent,
   ComparisonErrorEvent,
@@ -59,6 +61,7 @@ export class DiscussionGateway
   constructor(
     private readonly councilService: CouncilService,
     private readonly comparisonService: ComparisonService,
+    private readonly sessionService: SessionService,
     private readonly authService: AuthService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -203,6 +206,11 @@ export class DiscussionGateway
     });
 
     // Comparison events
+    this.eventEmitter.on(COMPARISON_EVENTS.COMPARISON_STARTED, (event: ComparisonStartedEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('comparison-started', { sessionId: event.sessionId });
+    });
+
     this.eventEmitter.on(COMPARISON_EVENTS.RESPONSE_RECEIVED, (event: ComparisonResponseEvent) => {
       const roomName = `session:${event.sessionId}`;
       this.server.to(roomName).emit('comparison-response', event);
@@ -239,18 +247,30 @@ export class DiscussionGateway
         return;
       }
 
-      // Start discussion in background (no await)
-      this.councilService.startDiscussion(sessionId).catch((error) => {
-        this.logger.error('Error starting discussion', error);
-        const roomName = `session:${sessionId}`;
-        this.server.to(roomName).emit('error', {
-          error: error.message || 'Failed to start discussion',
-        });
-      });
-
-      // Emit discussion-started to room
+      // Look up session to determine type
+      const session = await this.sessionService.findOne(sessionId);
       const roomName = `session:${sessionId}`;
-      this.server.to(roomName).emit('discussion-started', { sessionId });
+
+      if (session.type === 'COMPARISON') {
+        // Start comparison in background (no await)
+        this.comparisonService.startComparison(sessionId).catch((error) => {
+          console.error('Error starting comparison:', error);
+          this.server.to(roomName).emit('error', {
+            error: error.message || 'Failed to start comparison',
+          });
+        });
+      } else {
+        // Start discussion in background (no await)
+        this.councilService.startDiscussion(sessionId).catch((error) => {
+          console.error('Error starting discussion:', error);
+          this.server.to(roomName).emit('error', {
+            error: error.message || 'Failed to start discussion',
+          });
+        });
+
+        // Emit discussion-started to room
+        this.server.to(roomName).emit('discussion-started', { sessionId });
+      }
     } catch (error) {
       this.logger.error('Error in handleStartDiscussion', error);
       client.emit('error', {

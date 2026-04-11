@@ -81,9 +81,9 @@ export class MessageResponseDto {
       model: (message as any).model ?? null,
       responseTimeMs: (message as any).responseTimeMs ?? null,
       finishReason: (message as any).finishReason ?? null,
-      durationMs: (message as any).durationMs ?? null,
-      tokenCount: (message as any).tokenCount ?? null,
-      modelUsed: (message as any).modelUsed ?? null,
+      durationMs: message.durationMs ?? null,
+      tokenCount: message.tokenCount ?? null,
+      modelUsed: message.modelUsed ?? null,
     });
   }
 }

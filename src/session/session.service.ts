@@ -32,7 +32,7 @@ export class SessionService {
    * @throws BadRequestException if there are duplicate expert IDs
    */
   async create(createSessionDto: CreateSessionDto): Promise<SessionResponseDto> {
-    const { problemStatement, expertIds, maxMessages } = createSessionDto;
+    const { problemStatement, expertIds, maxMessages, type } = createSessionDto;
 
     // Validate that all expert IDs exist using a single batch query
     const existingExperts = await this.prisma.expert.findMany({
@@ -63,6 +63,7 @@ export class SessionService {
             problemStatement,
             maxMessages: maxMessages ?? undefined,
             status: SessionStatus.PENDING,
+            type: type ?? undefined,
           },
         });
 
