@@ -15,7 +15,7 @@ export function CouncilPresetPicker({ onSelect }: CouncilPresetPickerProps) {
         >
           <button
             type="button"
-            className="w-full text-left"
+            className="w-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label={`Select ${preset.name} preset`}
             onClick={() => onSelect(preset)}
           >

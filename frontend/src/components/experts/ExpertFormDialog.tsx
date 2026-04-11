@@ -30,7 +30,7 @@ export function ExpertFormDialog({
   const isCreating = !expert;
 
   const handleSuccess = () => {
-    onOpenChange(false);
+    handleOpenChange(false);
     onSuccess();
   };
 

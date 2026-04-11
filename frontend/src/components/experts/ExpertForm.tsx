@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { expertFormSchema, ExpertFormValues } from "@/lib/validations/expert";
@@ -54,6 +55,12 @@ export function ExpertForm({ expert, initialValues, onSuccess, onCancel }: Exper
           config: initialValues?.config ?? DEFAULT_CONFIG[DriverType.OPENAI],
         },
   });
+
+  useEffect(() => {
+    if (initialValues) {
+      form.trigger();
+    }
+  }, []);
 
   const watchedDriverType = form.watch("driverType");
 
