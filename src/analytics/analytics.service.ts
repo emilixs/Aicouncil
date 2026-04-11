@@ -99,8 +99,12 @@ export class AnalyticsService {
     const sessions = await this.prisma.session.findMany({ where });
     const completedSessions = sessions.filter((s) => s.status === 'COMPLETED').length;
 
+    const sessionIds = sessions.map((s) => s.id);
+    const metricsWhere = sessionIds.length > 0 ? { sessionId: { in: sessionIds } } : {};
+
     const aggregate = await this.prisma.sessionMetrics.aggregate({
-      _sum: { totalTokens: true, totalPromptTokens: true, totalCompletionTokens: true },
+      where: metricsWhere,
+      _sum: { totalTokens: true, totalPromptTokens: true, totalCompletionTokens: true, estimatedCostUsd: true },
       _avg: { totalRounds: true },
       _count: true,
     });
@@ -111,7 +115,7 @@ export class AnalyticsService {
       totalTokens: aggregate._sum.totalTokens ?? 0,
       totalPromptTokens: aggregate._sum.totalPromptTokens ?? 0,
       totalCompletionTokens: aggregate._sum.totalCompletionTokens ?? 0,
-      estimatedCostUsd: 0, // Simplified — could sum from metrics
+      estimatedCostUsd: aggregate._sum.estimatedCostUsd ?? 0,
       avgRoundsToConsensus: aggregate._avg.totalRounds ?? 0,
     };
   }
@@ -164,9 +168,17 @@ export class AnalyticsService {
     return { metrics, perExpert };
   }
 
-  async getSessionsList() {
+  async getSessionsList(filter?: { from?: string; to?: string }) {
+    const where: any = {};
+    if (filter?.from || filter?.to) {
+      where.createdAt = {};
+      if (filter.from) where.createdAt.gte = new Date(filter.from);
+      if (filter.to) where.createdAt.lte = new Date(filter.to);
+    }
+
     const sessions =
       (await this.prisma.session.findMany({
+        where,
         include: { metrics: true },
         orderBy: { createdAt: 'desc' },
       })) ?? [];
@@ -184,9 +196,17 @@ export class AnalyticsService {
     }));
   }
 
-  async getExpertsList() {
+  async getExpertsList(filter?: { from?: string; to?: string }) {
+    const sessionWhere: any = {};
+    if (filter?.from || filter?.to) {
+      sessionWhere.createdAt = {};
+      if (filter.from) sessionWhere.createdAt.gte = new Date(filter.from);
+      if (filter.to) sessionWhere.createdAt.lte = new Date(filter.to);
+    }
+
     const experts =
       (await this.prisma.sessionExpert.findMany({
+        where: { session: sessionWhere },
         include: { expert: true },
       })) ?? [];
 
@@ -254,9 +274,17 @@ export class AnalyticsService {
     };
   }
 
-  async getComparisons() {
+  async getComparisons(filter?: { from?: string; to?: string }) {
+    const where: any = {};
+    if (filter?.from || filter?.to) {
+      where.createdAt = {};
+      if (filter.from) where.createdAt.gte = new Date(filter.from);
+      if (filter.to) where.createdAt.lte = new Date(filter.to);
+    }
+
     const sessions =
       (await this.prisma.session.findMany({
+        where,
         include: {
           experts: { include: { expert: true } },
           metrics: true,
