@@ -118,6 +118,31 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           }
         });
 
+        // Comparison events
+        newSocket.on("comparison-response", (data: { sessionId: string; message: MessageResponse; completedCount: number; totalExperts: number }) => {
+          if (isMounted) {
+            setMessages((prev) => [...prev, data.message]);
+          }
+        });
+
+        newSocket.on("comparison-complete", () => {
+          if (isMounted) {
+            setIsDiscussionActive(false);
+          }
+        });
+
+        newSocket.on("comparison-error", (data: { sessionId: string; expertId: string; expertName: string; error: string }) => {
+          if (isMounted) {
+            setError(`${data.expertName}: ${data.error}`);
+          }
+        });
+
+        newSocket.on("comparison-started", () => {
+          if (isMounted) {
+            setIsDiscussionActive(true);
+          }
+        });
+
         // Error handling
         newSocket.on("error", (errorData: { message: string }) => {
           if (isMounted) {

@@ -29,6 +29,15 @@ export class MessageResponseDto {
   @Expose()
   expertSpecialty?: string | null;
 
+  @Expose()
+  durationMs?: number | null;
+
+  @Expose()
+  tokenCount?: number | null;
+
+  @Expose()
+  modelUsed?: string | null;
+
   constructor(partial: Partial<MessageResponseDto>) {
     Object.assign(this, partial);
   }
@@ -44,6 +53,9 @@ export class MessageResponseDto {
       timestamp: message.timestamp,
       expertName: message.expert?.name ?? null,
       expertSpecialty: message.expert?.specialty ?? null,
+      durationMs: message.durationMs ?? null,
+      tokenCount: message.tokenCount ?? null,
+      modelUsed: message.modelUsed ?? null,
     });
   }
 }
