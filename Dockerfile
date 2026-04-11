@@ -23,7 +23,10 @@ RUN npm ci --omit=dev
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
+COPY --from=deps /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 COPY prisma ./prisma
+COPY docker-entrypoint.sh ./
 
 EXPOSE 3000
-CMD ["node", "dist/main"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
