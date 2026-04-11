@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   ClassSerializerInterceptor,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ExpertService } from './expert.service';
 import { CreateExpertDto, UpdateExpertDto, ExpertResponseDto } from './dto';
 
@@ -20,6 +21,7 @@ export class ExpertController {
   constructor(private readonly expertService: ExpertService) {}
 
   @Post()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.CREATED)
   create(@Body() createExpertDto: CreateExpertDto): Promise<ExpertResponseDto> {
     return this.expertService.create(createExpertDto);
