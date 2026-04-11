@@ -16,7 +16,7 @@ export function ExpertTemplatePicker({ onSelect, onSkip }: ExpertTemplatePickerP
           <button
             key={template.id}
             type="button"
-            className="text-left"
+            className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             onClick={() => onSelect(template)}
             aria-label={`Use ${template.name} template`}
           >

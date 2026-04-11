@@ -28,8 +28,7 @@ export function ExpertFormDialog({
   const isCreating = !expert;
 
   const handleSuccess = () => {
-    onOpenChange(false);
-    setSelectedTemplate(null);
+    handleOpenChange(false);
     onSuccess();
   };
 
