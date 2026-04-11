@@ -41,27 +41,34 @@ export function TokenUsageChart({ sessions }: TokenUsageChartProps) {
             No data available
           </p>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 12 }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-              />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar
-                dataKey="tokens"
-                fill="hsl(var(--primary))"
-                name="Tokens"
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar
+                  dataKey="tokens"
+                  fill="hsl(var(--primary))"
+                  name="Tokens"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+            {sessions.length > 10 && (
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Showing 10 of {sessions.length} sessions
+              </p>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

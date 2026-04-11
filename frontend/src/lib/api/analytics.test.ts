@@ -3,7 +3,6 @@ import {
   getAnalyticsOverview,
   getAnalyticsSessions,
   getAnalyticsExperts,
-  getAnalyticsExpert,
   getAnalyticsComparisons,
 } from './analytics';
 import { apiClient } from '../api';
@@ -100,22 +99,6 @@ describe('analytics API client', () => {
         params: {},
       });
       expect(result).toEqual(mockExperts);
-    });
-  });
-
-  describe('getAnalyticsExpert', () => {
-    it('fetches expert detail by id', async () => {
-      const mockDetail = {
-        expertId: '1',
-        name: 'Expert A',
-        specialty: 'AI',
-        totalSessions: 5,
-        sessions: [],
-      };
-      mockGet.mockResolvedValue({ data: mockDetail });
-      const result = await getAnalyticsExpert('1');
-      expect(mockGet).toHaveBeenCalledWith('/analytics/experts/1');
-      expect(result).toEqual(mockDetail);
     });
   });
 
