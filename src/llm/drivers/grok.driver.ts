@@ -24,10 +24,7 @@ export class GrokDriver extends LLMDriver {
     });
   }
 
-  async chat(
-    messages: LLMMessage[],
-    config: LLMConfig,
-  ): Promise<LLMResponse> {
+  async chat(messages: LLMMessage[], config: LLMConfig): Promise<LLMResponse> {
     try {
       const temperature = config.temperature ?? 0.7;
       const max_tokens = config.maxTokens ?? 2000;
@@ -49,9 +46,7 @@ export class GrokDriver extends LLMDriver {
       });
 
       const content = response.choices[0]?.message?.content || '';
-      const finishReason = this.mapFinishReason(
-        response.choices[0]?.finish_reason,
-      );
+      const finishReason = this.mapFinishReason(response.choices[0]?.finish_reason);
 
       return {
         content,
@@ -129,10 +124,7 @@ export class GrokDriver extends LLMDriver {
 
     // Authentication errors
     if (status === 401) {
-      return new LLMAuthenticationException(
-        'Grok authentication failed',
-        error,
-      );
+      return new LLMAuthenticationException('Grok authentication failed', error);
     }
 
     // Rate limit errors
@@ -175,10 +167,6 @@ export class GrokDriver extends LLMDriver {
     }
 
     // Generic LLM exception for unknown errors
-    return new LLMServiceException(
-      `Grok error: ${error?.message || 'Unknown error'}`,
-      error,
-    );
+    return new LLMServiceException(`Grok error: ${error?.message || 'Unknown error'}`, error);
   }
 }
-

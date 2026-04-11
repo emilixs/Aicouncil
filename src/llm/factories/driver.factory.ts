@@ -19,9 +19,7 @@ export class DriverFactory {
       case DriverType.OPENAI: {
         const apiKey = this.configService.get<string>('OPENAI_API_KEY');
         if (!apiKey || apiKey.trim() === '') {
-          throw new LLMAuthenticationException(
-            'OpenAI API key not configured',
-          );
+          throw new LLMAuthenticationException('OpenAI API key not configured');
         }
         return new OpenAIDriver(apiKey);
       }
@@ -29,9 +27,7 @@ export class DriverFactory {
       case DriverType.ANTHROPIC: {
         const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
         if (!apiKey || apiKey.trim() === '') {
-          throw new LLMAuthenticationException(
-            'Anthropic API key not configured',
-          );
+          throw new LLMAuthenticationException('Anthropic API key not configured');
         }
         return new ClaudeDriver(apiKey);
       }
@@ -39,18 +35,13 @@ export class DriverFactory {
       case DriverType.GROK: {
         const apiKey = this.configService.get<string>('XAI_API_KEY');
         if (!apiKey || apiKey.trim() === '') {
-          throw new LLMAuthenticationException(
-            'xAI API key not configured',
-          );
+          throw new LLMAuthenticationException('xAI API key not configured');
         }
         return new GrokDriver(apiKey);
       }
 
       default:
-        throw new LLMInvalidRequestException(
-          `Unsupported driver type: ${driverType}`,
-        );
+        throw new LLMInvalidRequestException(`Unsupported driver type: ${driverType}`);
     }
   }
 }
-

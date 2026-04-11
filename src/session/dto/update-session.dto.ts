@@ -29,4 +29,3 @@ export class UpdateSessionDto {
   @IsBoolean()
   consensusReached?: boolean;
 }
-

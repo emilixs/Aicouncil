@@ -21,10 +21,7 @@ export class OpenAIDriver extends LLMDriver {
     this.client = new OpenAI({ apiKey });
   }
 
-  async chat(
-    messages: LLMMessage[],
-    config: LLMConfig,
-  ): Promise<LLMResponse> {
+  async chat(messages: LLMMessage[], config: LLMConfig): Promise<LLMResponse> {
     try {
       const temperature = config.temperature ?? 0.7;
       const max_tokens = config.maxTokens ?? 2000;
@@ -46,9 +43,7 @@ export class OpenAIDriver extends LLMDriver {
       });
 
       const content = response.choices[0]?.message?.content || '';
-      const finishReason = this.mapFinishReason(
-        response.choices[0]?.finish_reason,
-      );
+      const finishReason = this.mapFinishReason(response.choices[0]?.finish_reason);
 
       return {
         content,
@@ -126,10 +121,7 @@ export class OpenAIDriver extends LLMDriver {
 
     // Authentication errors
     if (status === 401) {
-      return new LLMAuthenticationException(
-        'OpenAI authentication failed',
-        error,
-      );
+      return new LLMAuthenticationException('OpenAI authentication failed', error);
     }
 
     // Rate limit errors
@@ -172,10 +164,6 @@ export class OpenAIDriver extends LLMDriver {
     }
 
     // Generic LLM exception for unknown errors
-    return new LLMServiceException(
-      `OpenAI error: ${error?.message || 'Unknown error'}`,
-      error,
-    );
+    return new LLMServiceException(`OpenAI error: ${error?.message || 'Unknown error'}`, error);
   }
 }
-

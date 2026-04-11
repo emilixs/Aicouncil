@@ -35,6 +35,7 @@ export default function ExpertsPage() {
 
   useEffect(() => {
     fetchExperts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleEdit = (expert: ExpertResponse) => {

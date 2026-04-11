@@ -102,11 +102,8 @@ export class SessionResponseDto {
       consensusReached: session.consensusReached,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
-      experts: session.experts.map((se) =>
-        ExpertResponseDto.fromPrisma(se.expert),
-      ),
+      experts: session.experts.map((se) => ExpertResponseDto.fromPrisma(se.expert)),
       messageCount: session._count?.messages,
     });
   }
 }
-

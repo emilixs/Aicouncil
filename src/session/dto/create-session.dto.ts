@@ -50,4 +50,3 @@ export class CreateSessionDto {
   @Max(100)
   maxMessages?: number;
 }
-

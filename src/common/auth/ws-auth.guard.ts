@@ -10,12 +10,11 @@ import { Socket } from 'socket.io';
 export class WsAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const client: Socket = context.switchToWs().getClient();
-    
+
     if (!client.data.user) {
       throw new WsException('Unauthorized');
     }
-    
+
     return true;
   }
 }
-

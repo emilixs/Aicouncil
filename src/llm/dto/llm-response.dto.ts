@@ -1,6 +1,6 @@
 /**
  * LLM Response DTO
- * 
+ *
  * Represents a completed chat response.
  * Provides a normalized response format across different LLM providers.
  */
@@ -29,4 +29,3 @@ export interface LLMResponse {
    */
   model: string;
 }
-

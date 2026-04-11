@@ -21,10 +21,7 @@ export class ClaudeDriver extends LLMDriver {
     this.client = new Anthropic({ apiKey });
   }
 
-  async chat(
-    messages: LLMMessage[],
-    config: LLMConfig,
-  ): Promise<LLMResponse> {
+  async chat(messages: LLMMessage[], config: LLMConfig): Promise<LLMResponse> {
     try {
       const systemMessage = this.extractSystemMessage(messages);
       const userAssistantMessages = this.filterUserAssistantMessages(messages);
@@ -49,8 +46,7 @@ export class ClaudeDriver extends LLMDriver {
         });
       });
 
-      const content =
-        response.content[0]?.type === 'text' ? response.content[0].text : '';
+      const content = response.content[0]?.type === 'text' ? response.content[0].text : '';
       const finishReason = this.mapFinishReason(response.stop_reason);
 
       return {
@@ -59,8 +55,7 @@ export class ClaudeDriver extends LLMDriver {
         usage: {
           promptTokens: response.usage.input_tokens,
           completionTokens: response.usage.output_tokens,
-          totalTokens:
-            response.usage.input_tokens + response.usage.output_tokens,
+          totalTokens: response.usage.input_tokens + response.usage.output_tokens,
         },
         model: response.model,
       };
@@ -98,10 +93,7 @@ export class ClaudeDriver extends LLMDriver {
       });
 
       for await (const event of stream) {
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta.type === 'text_delta'
-        ) {
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           const delta = event.delta.text;
           if (delta) {
             yield delta;
@@ -119,9 +111,7 @@ export class ClaudeDriver extends LLMDriver {
   }
 
   private filterUserAssistantMessages(messages: LLMMessage[]): LLMMessage[] {
-    return messages.filter(
-      (msg) => msg.role === 'user' || msg.role === 'assistant',
-    );
+    return messages.filter((msg) => msg.role === 'user' || msg.role === 'assistant');
   }
 
   private mapFinishReason(reason: string | null): LLMResponse['finishReason'] {
@@ -148,10 +138,7 @@ export class ClaudeDriver extends LLMDriver {
 
     // Authentication errors
     if (status === 401) {
-      return new LLMAuthenticationException(
-        'Anthropic authentication failed',
-        error,
-      );
+      return new LLMAuthenticationException('Anthropic authentication failed', error);
     }
 
     // Rate limit errors
@@ -194,10 +181,6 @@ export class ClaudeDriver extends LLMDriver {
     }
 
     // Generic LLM exception for unknown errors
-    return new LLMServiceException(
-      `Anthropic error: ${error?.message || 'Unknown error'}`,
-      error,
-    );
+    return new LLMServiceException(`Anthropic error: ${error?.message || 'Unknown error'}`, error);
   }
 }
-

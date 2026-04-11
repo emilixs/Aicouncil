@@ -4,9 +4,7 @@ import { Type } from 'class-transformer';
 import { CreateExpertDto } from './create-expert.dto';
 import { UpdateLlmConfigDto } from '../../llm/dto';
 
-class UpdateExpertDtoBase extends PartialType(
-  OmitType(CreateExpertDto, ['config'] as const)
-) {}
+class UpdateExpertDtoBase extends PartialType(OmitType(CreateExpertDto, ['config'] as const)) {}
 
 export class UpdateExpertDto extends UpdateExpertDtoBase {
   /**
@@ -18,4 +16,3 @@ export class UpdateExpertDto extends UpdateExpertDtoBase {
   @Type(() => UpdateLlmConfigDto)
   config?: UpdateLlmConfigDto;
 }
-

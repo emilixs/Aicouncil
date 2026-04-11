@@ -2,7 +2,7 @@ import { setTimeout } from 'node:timers/promises';
 
 /**
  * Retry Options
- * 
+ *
  * Configuration for exponential backoff retry logic.
  */
 export interface RetryOptions {
@@ -72,7 +72,7 @@ export function isRetryableError(error: any): boolean {
 
 /**
  * Parse Retry-After header
- * 
+ *
  * @param retryAfter - Retry-After header value (seconds or HTTP date)
  * @returns Delay in milliseconds or null
  */
@@ -99,10 +99,10 @@ export function parseRetryAfter(retryAfter: string | null): number | null {
 
 /**
  * Retry with exponential backoff and jitter
- * 
+ *
  * Implements industry-standard retry logic with exponential backoff and full jitter.
  * Honors provider rate limit headers (Retry-After).
- * 
+ *
  * @param fn - The async function to retry
  * @param options - Retry configuration
  * @returns Promise resolving to the function result
@@ -192,4 +192,3 @@ export async function retryWithBackoff<T>(
   // This should never be reached, but TypeScript requires it
   throw lastError;
 }
-

@@ -9,4 +9,3 @@ import { WsAuthGuard } from './auth/ws-auth.guard';
   exports: [PrismaService, AuthService, WsAuthGuard],
 })
 export class CommonModule {}
-

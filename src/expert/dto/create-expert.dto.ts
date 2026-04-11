@@ -1,4 +1,13 @@
-import { IsString, IsNotEmpty, MinLength, MaxLength, IsEnum, IsObject, ValidateNested, IsDefined } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  MaxLength,
+  IsEnum,
+  IsObject,
+  ValidateNested,
+  IsDefined,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { DriverType } from '@prisma/client';
 import { LLMConfig } from '../../llm/dto';
@@ -47,4 +56,3 @@ export class CreateExpertDto {
   @Type(() => LLMConfig)
   config: LLMConfig;
 }
-

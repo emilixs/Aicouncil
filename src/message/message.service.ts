@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { SessionStatus } from '@prisma/client';
 import { PrismaService } from '../common/prisma.service';
 import { CreateMessageDto, MessageResponseDto } from './dto';
@@ -97,7 +103,10 @@ export class MessageService {
 
       return messages.map((message) => MessageResponseDto.fromPrisma(message));
     } catch (error) {
-      this.logger.error(`Error finding messages for session ${sessionId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error finding messages for session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
       throw new InternalServerErrorException('Failed to retrieve messages');
     }
   }
@@ -108,7 +117,10 @@ export class MessageService {
         where: { sessionId },
       });
     } catch (error) {
-      this.logger.error(`Error counting messages for session ${sessionId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error counting messages for session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
       throw new InternalServerErrorException('Failed to count messages');
     }
   }
@@ -127,7 +139,10 @@ export class MessageService {
 
       return messages.map((message) => MessageResponseDto.fromPrisma(message));
     } catch (error) {
-      this.logger.error(`Error finding latest messages for session ${sessionId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error finding latest messages for session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
       throw new InternalServerErrorException('Failed to retrieve latest messages');
     }
   }
@@ -138,9 +153,11 @@ export class MessageService {
         where: { sessionId },
       });
     } catch (error) {
-      this.logger.error(`Error deleting messages for session ${sessionId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error deleting messages for session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
       throw new InternalServerErrorException('Failed to delete messages');
     }
   }
 }
-

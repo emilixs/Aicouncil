@@ -12,6 +12,7 @@ export default function Layout() {
   useEffect(() => {
     // Apply the persisted theme on mount using the store's single source of truth
     setTheme(theme);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

@@ -21,7 +21,7 @@ export class LLMException extends HttpException {
 
 /**
  * LLM Rate Limit Exception
- * 
+ *
  * Thrown when the provider returns a rate limit error (429).
  */
 export class LLMRateLimitException extends LLMException {
@@ -38,7 +38,7 @@ export class LLMRateLimitException extends LLMException {
 
 /**
  * LLM Authentication Exception
- * 
+ *
  * Thrown when the API key is invalid or missing (401).
  */
 export class LLMAuthenticationException extends LLMException {
@@ -49,7 +49,7 @@ export class LLMAuthenticationException extends LLMException {
 
 /**
  * LLM Invalid Request Exception
- * 
+ *
  * Thrown for malformed requests or invalid parameters (400).
  */
 export class LLMInvalidRequestException extends LLMException {
@@ -60,7 +60,7 @@ export class LLMInvalidRequestException extends LLMException {
 
 /**
  * LLM Service Exception
- * 
+ *
  * Thrown when the provider service is unavailable (503).
  */
 export class LLMServiceException extends LLMException {
@@ -71,7 +71,7 @@ export class LLMServiceException extends LLMException {
 
 /**
  * LLM Timeout Exception
- * 
+ *
  * Thrown when a request times out (408).
  */
 export class LLMTimeoutException extends LLMException {
@@ -79,4 +79,3 @@ export class LLMTimeoutException extends LLMException {
     super(message, 408, cause);
   }
 }
-

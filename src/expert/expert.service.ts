@@ -13,7 +13,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 @Injectable()
 export class ExpertService {
   private readonly logger = new Logger(ExpertService.name);
-  
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createExpertDto: CreateExpertDto): Promise<ExpertResponseDto> {
@@ -39,7 +39,9 @@ export class ExpertService {
         throw new BadRequestException('Failed to create expert due to validation error');
       }
       this.logger.error(`Unexpected error creating expert: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('An unexpected error occurred while creating the expert');
+      throw new InternalServerErrorException(
+        'An unexpected error occurred while creating the expert',
+      );
     }
   }
 
@@ -50,7 +52,7 @@ export class ExpertService {
       },
     });
 
-    return experts.map(expert => ExpertResponseDto.fromPrisma(expert));
+    return experts.map((expert) => ExpertResponseDto.fromPrisma(expert));
   }
 
   async findOne(id: string): Promise<ExpertResponseDto> {
@@ -85,7 +87,9 @@ export class ExpertService {
         throw new BadRequestException('Failed to update expert due to validation error');
       }
       this.logger.error(`Unexpected error updating expert: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('An unexpected error occurred while updating the expert');
+      throw new InternalServerErrorException(
+        'An unexpected error occurred while updating the expert',
+      );
     }
   }
 
@@ -108,8 +112,9 @@ export class ExpertService {
         throw new BadRequestException('Failed to delete expert');
       }
       this.logger.error(`Unexpected error deleting expert: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('An unexpected error occurred while deleting the expert');
+      throw new InternalServerErrorException(
+        'An unexpected error occurred while deleting the expert',
+      );
     }
   }
 }
-
