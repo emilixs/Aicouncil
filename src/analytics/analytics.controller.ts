@@ -12,8 +12,9 @@ export class AnalyticsController {
   }
 
   @Get('sessions')
-  async getSessions() {
-    return this.analyticsService.getSessionsList();
+  async getSessions(@Query('from') from?: string, @Query('to') to?: string) {
+    const filter = from || to ? { from, to } : undefined;
+    return this.analyticsService.getSessionsList(filter);
   }
 
   @Get('sessions/:id')
@@ -22,8 +23,9 @@ export class AnalyticsController {
   }
 
   @Get('experts')
-  async getExperts() {
-    return this.analyticsService.getExpertsList();
+  async getExperts(@Query('from') from?: string, @Query('to') to?: string) {
+    const filter = from || to ? { from, to } : undefined;
+    return this.analyticsService.getExpertsList(filter);
   }
 
   @Get('experts/:id')
@@ -32,7 +34,8 @@ export class AnalyticsController {
   }
 
   @Get('comparisons')
-  async getComparisons() {
-    return this.analyticsService.getComparisons();
+  async getComparisons(@Query('from') from?: string, @Query('to') to?: string) {
+    const filter = from || to ? { from, to } : undefined;
+    return this.analyticsService.getComparisons(filter);
   }
 }
