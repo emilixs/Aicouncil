@@ -24,7 +24,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-aicouncil}:${POSTGRES_PASSWORD:-aicouncil}@postgres:5432/${POSTGRES_DB:-aicouncil}
       PORT: 3000
-      JWT_SECRET: ${JWT_SECRET:-changeme}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
       WS_CORS_ORIGINS: ${WS_CORS_ORIGINS:-*}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
