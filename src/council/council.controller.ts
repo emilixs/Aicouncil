@@ -1,4 +1,5 @@
 import { Controller, Post, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CouncilService } from './council.service';
 import { SessionResponseDto } from '../session/dto/session-response.dto';
 
@@ -73,6 +74,7 @@ export class CouncilController {
    * }
    */
   @Post(':id/start')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async startDiscussion(@Param('id') id: string): Promise<SessionResponseDto> {
     return this.councilService.startDiscussion(id);
