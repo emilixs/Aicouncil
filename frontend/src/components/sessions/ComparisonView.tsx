@@ -7,10 +7,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface ComparisonViewProps {
   session: SessionResponse;
   messages: MessageResponse[];
-  isConnected: boolean;
+  isConnected?: boolean;
 }
 
-export function ComparisonView({ session, messages, isConnected }: ComparisonViewProps) {
+export function ComparisonView({ session, messages }: ComparisonViewProps) {
   const experts = session.experts;
 
   const getExpertMessage = (expertId: string): MessageResponse | undefined => {
