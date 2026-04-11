@@ -191,6 +191,7 @@ export class DiscussionGateway
         expertId: event.expertId,
         expertName: event.expertName,
         turnNumber: event.turnNumber,
+        injectedMemoryIds: event.injectedMemoryIds,
       });
     });
 

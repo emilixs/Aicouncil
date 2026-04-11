@@ -18,6 +18,7 @@ import {
   DiscussionErrorEvent,
   ExpertTurnStartEvent,
 } from './events/discussion.events';
+import { MemoryService } from '../memory/memory.service';
 
 /**
  * CouncilService - Core orchestration service for multi-agent discussions
@@ -35,6 +36,7 @@ export class CouncilService {
     private readonly messageService: MessageService,
     private readonly driverFactory: DriverFactory,
     private readonly eventEmitter: EventEmitter2,
+    private readonly memoryService: MemoryService,
   ) {}
 
   /**
@@ -131,9 +133,13 @@ export class CouncilService {
     // Validate session exists and is in PENDING status
     const session = await this.sessionService.findOne(sessionId);
 
-    if (session.status !== SessionStatus.PENDING) {
+    const normalizedStatus = String(session.status).toUpperCase();
+    if (
+      normalizedStatus !== SessionStatus.PENDING &&
+      normalizedStatus !== SessionStatus.ACTIVE
+    ) {
       throw new BadRequestException(
-        `Cannot start discussion for session with status ${session.statusDisplay}. Session must be in pending status.`,
+        `Cannot start discussion for session with status ${session.statusDisplay}. Session must be in pending or active status.`,
       );
     }
 
@@ -172,9 +178,11 @@ export class CouncilService {
       }
       this.logger.log(`All expert configurations validated successfully`);
 
-      // Transition session to ACTIVE only after all validations pass
-      await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
-      this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
+      // Transition session to ACTIVE only after all validations pass (skip if already active)
+      if (normalizedStatus === SessionStatus.PENDING) {
+        await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
+        this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
+      }
 
       this.logger.log(`Starting discussion with ${experts.length} experts`);
 
@@ -204,16 +212,34 @@ export class CouncilService {
         const currentExpert = experts[currentExpertIndex % experts.length];
         this.logger.log(`Expert turn: ${currentExpert.name} (${currentExpert.specialty})`);
 
+        // Retrieve recent messages for context
+        const recentMessages = await this.messageService.findLatestBySession(sessionId, 10);
+
+        // Retrieve relevant memories for the current expert
+        let memoryText = '';
+        let injectedMemoryIds: string[] = [];
+        if (currentExpert.memoryEnabled) {
+          try {
+            const { memories, ids } = await this.memoryService.getRelevantMemories(
+              currentExpert.id,
+              session.problemStatement,
+              currentExpert.memoryMaxInject,
+            );
+            injectedMemoryIds = ids;
+            memoryText = this.memoryService.formatMemoriesForInjection(memories);
+          } catch (error) {
+            this.logger.warn(`Failed to retrieve memories for expert ${currentExpert.name}: ${error.message}`);
+          }
+        }
+
         // Emit expert turn start event
         this.eventEmitter.emit(DISCUSSION_EVENTS.EXPERT_TURN_START, {
           sessionId,
           expertId: currentExpert.id,
           expertName: currentExpert.name,
           turnNumber: currentExpertIndex + 1,
+          injectedMemoryIds,
         } as ExpertTurnStartEvent);
-
-        // Retrieve recent messages for context
-        const recentMessages = await this.messageService.findLatestBySession(sessionId, 10);
 
         // Build context for the current expert
         const contextMessages = this.buildExpertContext(
@@ -221,6 +247,7 @@ export class CouncilService {
           currentExpert,
           experts,
           recentMessages,
+          memoryText,
         );
 
         // Comment 2: Handle per-expert LLM errors gracefully
@@ -315,6 +342,19 @@ export class CouncilService {
       // Conclude the session
       await this.concludeSession(sessionId, consensusReached);
 
+      // Generate memories for each expert (async, non-blocking)
+      for (const expert of experts) {
+        if (expert.memoryEnabled) {
+          this.memoryService
+            .generateSessionMemory(expert.id, sessionId)
+            .catch((error) =>
+              this.logger.error(
+                `Memory generation failed for expert ${expert.name}: ${error.message}`,
+              ),
+            );
+        }
+      }
+
       // Get final message count
       const finalMessageCount = await this.messageService.countBySession(sessionId);
 
@@ -377,16 +417,19 @@ export class CouncilService {
     currentExpert: ExpertResponseDto,
     allExperts: ExpertResponseDto[],
     recentMessages: MessageResponseDto[],
+    memoryText?: string,
   ): LLMMessage[] {
     // Build system message with expert's role and instructions
     const expertList = allExperts
       .map((expert) => `- ${expert.name} (${expert.specialty})`)
       .join('\n');
 
+    const memorySection = memoryText ? `\n\n${memoryText}\n` : '';
+
     const systemMessage: LLMMessage = {
       role: 'system',
       content: `${currentExpert.systemPrompt}
-
+${memorySection}
 Problem Statement:
 ${session.problemStatement}
 

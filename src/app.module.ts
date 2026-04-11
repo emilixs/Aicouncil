@@ -9,6 +9,7 @@ import { ExpertModule } from './expert/expert.module';
 import { SessionModule } from './session/session.module';
 import { MessageModule } from './message/message.module';
 import { CouncilModule } from './council/council.module';
+import { MemoryModule } from './memory/memory.module';
 import { validate } from './config/env.validation';
 
 @Module({
@@ -25,6 +26,7 @@ import { validate } from './config/env.validation';
     SessionModule,
     MessageModule,
     CouncilModule,
+    MemoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -5,6 +5,7 @@ import { SessionModule } from '../session/session.module';
 import { MessageModule } from '../message/message.module';
 import { LlmModule } from '../llm/llm.module';
 import { DiscussionGateway } from './gateways/discussion.gateway';
+import { MemoryModule } from '../memory/memory.module';
 
 /**
  * Council module for orchestrating multi-agent discussions.
@@ -24,7 +25,7 @@ import { DiscussionGateway } from './gateways/discussion.gateway';
  * - CouncilService: Available for future WebSocket gateway to enable real-time streaming
  */
 @Module({
-  imports: [SessionModule, MessageModule, LlmModule],
+  imports: [SessionModule, MessageModule, LlmModule, MemoryModule],
   controllers: [CouncilController],
   providers: [CouncilService, DiscussionGateway],
   exports: [CouncilService],
