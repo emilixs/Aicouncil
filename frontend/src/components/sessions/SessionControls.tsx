@@ -32,10 +32,12 @@ interface SessionControlsProps {
   session: SessionResponse;
   isConnected: boolean;
   isDiscussionActive: boolean;
+  isPaused: boolean;
   currentExpertTurn: CurrentExpertTurn | null;
   messageCount: number;
   onStartDiscussion: () => void;
   onPauseDiscussion: () => void;
+  onResumeDiscussion: () => void;
   onStopDiscussion: () => void;
 }
 
@@ -43,10 +45,12 @@ export function SessionControls({
   session,
   isConnected,
   isDiscussionActive,
+  isPaused,
   currentExpertTurn,
   messageCount,
   onStartDiscussion,
   onPauseDiscussion,
+  onResumeDiscussion,
   onStopDiscussion,
 }: SessionControlsProps) {
   // Map statusDisplay to SessionStatus enum
@@ -56,6 +60,8 @@ export function SessionControls({
         return SessionStatus.PENDING;
       case "active":
         return SessionStatus.ACTIVE;
+      case "paused":
+        return SessionStatus.PAUSED;
       case "concluded":
       case "completed":
         return SessionStatus.COMPLETED;
@@ -64,18 +70,20 @@ export function SessionControls({
     }
   };
 
-  const sessionStatus = session.status || mapStatusDisplay(session.statusDisplay);
+  const sessionStatus = isPaused ? SessionStatus.PAUSED : (session.status || mapStatusDisplay(session.statusDisplay));
   const isComparison = session.type === SessionType.COMPARISON;
 
-  const statusColor = {
+  const statusColor: Record<string, string> = {
     [SessionStatus.PENDING]: "bg-yellow-100 text-yellow-800",
     [SessionStatus.ACTIVE]: "bg-blue-100 text-blue-800",
+    [SessionStatus.PAUSED]: "bg-orange-100 text-orange-800",
     [SessionStatus.COMPLETED]: "bg-green-100 text-green-800",
   };
 
-  const statusIcon = {
+  const statusIcon: Record<string, React.ReactNode> = {
     [SessionStatus.PENDING]: <Clock className="h-4 w-4" />,
     [SessionStatus.ACTIVE]: <Play className="h-4 w-4" />,
+    [SessionStatus.PAUSED]: <Pause className="h-4 w-4" />,
     [SessionStatus.COMPLETED]: <CheckCircle2 className="h-4 w-4" />,
   };
 
@@ -174,7 +182,16 @@ export function SessionControls({
             </Alert>
           )}
 
-          {isDiscussionActive && (
+          {isPaused && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <Pause className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                Discussion is paused
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isDiscussionActive && !isPaused && (
             <Alert className="border-blue-200 bg-blue-50">
               <Play className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
@@ -225,6 +242,28 @@ export function SessionControls({
             <Button
               onClick={onStopDiscussion}
               disabled={!isConnected || !isDiscussionActive}
+              variant="destructive"
+              className="flex-1"
+            >
+              <Square className="h-4 w-4 mr-2" />
+              Stop
+            </Button>
+          </>
+        )}
+
+        {sessionStatus === SessionStatus.PAUSED && !isComparison && (
+          <>
+            <Button
+              onClick={onResumeDiscussion}
+              disabled={!isConnected}
+              className="flex-1"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Resume
+            </Button>
+            <Button
+              onClick={onStopDiscussion}
+              disabled={!isConnected}
               variant="destructive"
               className="flex-1"
             >

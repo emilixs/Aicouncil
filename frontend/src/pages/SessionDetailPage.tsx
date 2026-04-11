@@ -32,6 +32,8 @@ export default function SessionDetailPage() {
         return SessionStatus.PENDING;
       case "active":
         return SessionStatus.ACTIVE;
+      case "paused":
+        return SessionStatus.PAUSED;
       case "concluded":
       case "completed":
         return SessionStatus.COMPLETED;
@@ -46,10 +48,12 @@ export default function SessionDetailPage() {
     messages: wsMessages,
     consensusReached,
     isDiscussionActive,
+    isPaused,
     currentExpertTurn,
     startDiscussion,
     sendIntervention,
     pauseDiscussion,
+    resumeDiscussion,
     stopDiscussion,
     disconnect,
   } = useWebSocket(id || "");
@@ -207,10 +211,12 @@ export default function SessionDetailPage() {
               session={session}
               isConnected={isConnected}
               isDiscussionActive={isDiscussionActive}
+              isPaused={isPaused}
               currentExpertTurn={currentExpertTurn}
               messageCount={allMessages.length}
               onStartDiscussion={startDiscussion}
               onPauseDiscussion={pauseDiscussion}
+              onResumeDiscussion={resumeDiscussion}
               onStopDiscussion={stopDiscussion}
             />
 
@@ -265,10 +271,12 @@ export default function SessionDetailPage() {
               session={session}
               isConnected={isConnected}
               isDiscussionActive={isDiscussionActive}
+              isPaused={isPaused}
               currentExpertTurn={currentExpertTurn}
               messageCount={allMessages.length}
               onStartDiscussion={startDiscussion}
               onPauseDiscussion={pauseDiscussion}
+              onResumeDiscussion={resumeDiscussion}
               onStopDiscussion={stopDiscussion}
             />
 

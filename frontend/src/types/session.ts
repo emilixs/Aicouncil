@@ -3,6 +3,7 @@ import type { ExpertResponse } from './expert';
 export enum SessionStatus {
   PENDING = 'PENDING',
   ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
   COMPLETED = 'COMPLETED',
 }
 

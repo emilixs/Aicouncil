@@ -7,6 +7,9 @@ export const DISCUSSION_EVENTS = {
   MESSAGE_CREATED: 'discussion.message.created',
   CONSENSUS_REACHED: 'discussion.consensus.reached',
   SESSION_ENDED: 'discussion.session.ended',
+  SESSION_PAUSED: 'discussion.session.paused',
+  SESSION_RESUMED: 'discussion.session.resumed',
+  DISCUSSION_STOPPED: 'discussion.stopped',
   ERROR: 'discussion.error',
   EXPERT_TURN_START: 'discussion.expert.turn.start',
 } as const;
@@ -55,4 +58,25 @@ export interface ExpertTurnStartEvent {
   expertId: string;
   expertName: string;
   turnNumber: number;
+}
+
+/**
+ * Event emitted when a discussion is paused
+ */
+export interface DiscussionPausedEvent {
+  sessionId: string;
+}
+
+/**
+ * Event emitted when a discussion is resumed
+ */
+export interface DiscussionResumedEvent {
+  sessionId: string;
+}
+
+/**
+ * Event emitted immediately when a stop is requested (before loop exits)
+ */
+export interface DiscussionStoppedEvent {
+  sessionId: string;
 }

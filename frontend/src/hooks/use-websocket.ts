@@ -17,10 +17,12 @@ interface UseWebSocketReturn {
   messages: MessageResponse[];
   consensusReached: boolean;
   isDiscussionActive: boolean;
+  isPaused: boolean;
   currentExpertTurn: CurrentExpertTurn | null;
   startDiscussion: () => void;
   sendIntervention: (content: string) => Promise<void>;
   pauseDiscussion: () => void;
+  resumeDiscussion: () => void;
   stopDiscussion: () => void;
   disconnect: () => void;
 }
@@ -32,6 +34,7 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
   const [messages, setMessages] = useState<MessageResponse[]>([]);
   const [consensusReached, setConsensusReached] = useState(false);
   const [isDiscussionActive, setIsDiscussionActive] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [currentExpertTurn, setCurrentExpertTurn] = useState<CurrentExpertTurn | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -81,6 +84,19 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
         newSocket.on("discussion-started", () => {
           if (isMounted) {
             setIsDiscussionActive(true);
+            setIsPaused(false);
+          }
+        });
+
+        newSocket.on("discussion-paused", () => {
+          if (isMounted) {
+            setIsPaused(true);
+          }
+        });
+
+        newSocket.on("discussion-resumed", () => {
+          if (isMounted) {
+            setIsPaused(false);
           }
         });
 
@@ -104,10 +120,19 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           }
         });
 
+        // Discussion stopped (immediate feedback before loop exits)
+        newSocket.on("discussion-stopped", () => {
+          if (isMounted) {
+            setIsDiscussionActive(false);
+            setIsPaused(false);
+          }
+        });
+
         // Session ended
         newSocket.on("session-ended", () => {
           if (isMounted) {
             setIsDiscussionActive(false);
+            setIsPaused(false);
           }
         });
 
@@ -209,6 +234,13 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
     }
   }, [socket, sessionId]);
 
+  // Resume discussion
+  const resumeDiscussion = useCallback(() => {
+    if (socket?.connected) {
+      socket.emit("resume-discussion", { sessionId });
+    }
+  }, [socket, sessionId]);
+
   // Stop discussion
   const stopDiscussion = useCallback(() => {
     if (socket?.connected) {
@@ -240,10 +272,12 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
     messages,
     consensusReached,
     isDiscussionActive,
+    isPaused,
     currentExpertTurn,
     startDiscussion,
     sendIntervention,
     pauseDiscussion,
+    resumeDiscussion,
     stopDiscussion,
     disconnect,
   };
