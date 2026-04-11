@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { SessionStatus } from '@prisma/client';
 import { PrismaService } from './common/prisma.service';
 import { AppModule } from './app.module';
@@ -35,6 +36,7 @@ describe('AppModule - crash recovery on bootstrap', () => {
     const appModule = Object.create(AppModule.prototype);
     // Manually set the prisma property (simulating DI)
     (appModule as any).prisma = mockPrisma;
+    (appModule as any).logger = new Logger(AppModule.name);
 
     // Execute bootstrap — this should call updateMany to mark orphaned sessions
     await (appModule as any).onApplicationBootstrap();
@@ -60,6 +62,7 @@ describe('AppModule - crash recovery on bootstrap', () => {
 
     const appModule = Object.create(AppModule.prototype);
     (appModule as any).prisma = mockPrisma;
+    (appModule as any).logger = new Logger(AppModule.name);
 
     await (appModule as any).onApplicationBootstrap();
 

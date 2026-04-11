@@ -1,6 +1,7 @@
 import { Module, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { SessionStatus } from '@prisma/client';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CommonModule } from './common/common.module';
@@ -36,15 +37,15 @@ export class AppModule implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     const result = await this.prisma.session.updateMany({
       where: {
-        status: { in: ['ACTIVE', 'PAUSED'] as any },
+        status: { in: [SessionStatus.ACTIVE, SessionStatus.PAUSED] },
       },
       data: {
-        status: 'CANCELLED' as any,
+        status: SessionStatus.CANCELLED,
       },
     });
 
     if (result.count > 0) {
-      this.logger?.warn(
+      this.logger.warn(
         `Crash recovery: marked ${result.count} orphaned ACTIVE/PAUSED sessions as CANCELLED`,
       );
     }

@@ -20,42 +20,27 @@ export class CouncilController {
   /**
    * Start a multi-agent discussion for the specified session.
    *
-   * This endpoint initiates a council discussion where experts take turns
-   * responding to the problem statement and each other's messages. The discussion
-   * continues until:
+   * This is an async fire-and-forget endpoint. It validates the session and expert
+   * configurations, transitions the session to ACTIVE, launches the discussion loop
+   * in the background, and returns immediately with the session in ACTIVE status.
+   *
+   * The discussion loop runs asynchronously until:
    * - An expert explicitly states agreement/consensus (consensusReached: true)
    * - The session's maxMessages limit is reached (consensusReached: false)
+   * - The discussion is stopped or paused via control signals
    *
    * Prerequisites:
    * - Session must exist and be in PENDING status
    * - All experts in the session must have valid configurations
    * - Required API keys must be configured for the driver types used by experts
    *
-   * The discussion is a long-running synchronous operation that may take several
-   * seconds to minutes depending on:
-   * - Number of experts in the session
-   * - Complexity of the problem statement
-   * - Message limit configuration
-   * - LLM response times
-   *
-   * During the discussion:
-   * - Session status transitions from PENDING → ACTIVE
-   * - Experts take turns in round-robin order
-   * - Each expert receives context including recent messages and other experts' specialties
-   * - Messages are persisted in real-time
-   *
-   * Upon completion:
-   * - Session status transitions to COMPLETED
-   * - consensusReached flag indicates whether experts reached agreement
-   * - All messages are available via GET /sessions/:id/messages
-   *
    * @param id - The session ID (UUID)
-   * @returns The completed session with final status and consensusReached flag
+   * @returns The session in ACTIVE status (discussion continues in background)
    *
    * @throws {NotFoundException} If session does not exist
    * @throws {BadRequestException} If session is not in PENDING status, has no experts,
    *                                or required API keys are missing
-   * @throws {InternalServerErrorException} If an unexpected error occurs during discussion
+   * @throws {InternalServerErrorException} If an unexpected error occurs during setup
    *
    * @example
    * POST /sessions/abc123-def456-ghi789/start
@@ -64,8 +49,8 @@ export class CouncilController {
    * {
    *   "id": "abc123-def456-ghi789",
    *   "problemStatement": "How should we architect a scalable microservices system?",
-   *   "status": "COMPLETED",
-   *   "consensusReached": true,
+   *   "status": "ACTIVE",
+   *   "consensusReached": false,
    *   "maxMessages": 50,
    *   "createdAt": "2025-10-26T10:00:00Z",
    *   "updatedAt": "2025-10-26T10:05:30Z",
@@ -73,7 +58,7 @@ export class CouncilController {
    * }
    */
   @Post(':id/start')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.ACCEPTED)
   async startDiscussion(@Param('id') id: string): Promise<SessionResponseDto> {
     return this.councilService.startDiscussion(id);
   }
