@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class AppService {
-  getHealth() {
+  getHealth(dbHealthy: boolean) {
     return {
-      status: 'ok',
-      message: 'AI Council API is running',
+      status: dbHealthy ? 'ok' : 'degraded',
+      version: '0.0.1',
+      uptime: process.uptime(),
+      database: dbHealthy ? 'connected' : 'disconnected',
       timestamp: new Date().toISOString(),
     };
   }
