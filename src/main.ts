@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
@@ -9,6 +9,8 @@ async function bootstrap() {
     AppModule,
     new FastifyAdapter({ logger: true }),
   );
+
+  const logger = new Logger('Bootstrap');
 
   // Enable global validation pipe
   app.useGlobalPipes(
@@ -33,7 +35,7 @@ async function bootstrap() {
 
   await app.listen(port, '0.0.0.0');
 
-  console.log(`🚀 AI Council API is running on: http://localhost:${port}`);
+  logger.log(`AI Council API is running on: http://localhost:${port}`);
 }
 
 bootstrap();
