@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsEnum, MinLength, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 import { MessageRole } from '@prisma/client';
 
 export class CreateMessageDto {
@@ -38,4 +46,3 @@ export class CreateMessageDto {
   @IsBoolean()
   isIntervention?: boolean;
 }
-

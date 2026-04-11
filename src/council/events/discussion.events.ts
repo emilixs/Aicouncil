@@ -56,4 +56,3 @@ export interface ExpertTurnStartEvent {
   expertName: string;
   turnNumber: number;
 }
-

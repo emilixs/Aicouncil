@@ -26,9 +26,7 @@ export class SessionController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(
-    @Body() createSessionDto: CreateSessionDto,
-  ): Promise<SessionResponseDto> {
+  create(@Body() createSessionDto: CreateSessionDto): Promise<SessionResponseDto> {
     return this.sessionService.create(createSessionDto);
   }
 
@@ -90,4 +88,3 @@ export class SessionController {
     };
   }
 }
-

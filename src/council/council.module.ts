@@ -24,14 +24,9 @@ import { DiscussionGateway } from './gateways/discussion.gateway';
  * - CouncilService: Available for future WebSocket gateway to enable real-time streaming
  */
 @Module({
-  imports: [
-    SessionModule,
-    MessageModule,
-    LlmModule,
-  ],
+  imports: [SessionModule, MessageModule, LlmModule],
   controllers: [CouncilController],
   providers: [CouncilService, DiscussionGateway],
   exports: [CouncilService],
 })
 export class CouncilModule {}
-

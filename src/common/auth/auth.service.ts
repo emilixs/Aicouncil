@@ -16,7 +16,9 @@ export class AuthService {
     const jwtSecret = this.configService.get<string>('JWT_SECRET');
 
     if (!jwtSecret || jwtSecret.trim() === '') {
-      this.logger.error('JWT_SECRET is not configured. Service cannot start without a valid JWT_SECRET.');
+      this.logger.error(
+        'JWT_SECRET is not configured. Service cannot start without a valid JWT_SECRET.',
+      );
       throw new Error('JWT_SECRET environment variable is required for AuthService');
     }
 
@@ -69,4 +71,3 @@ export class AuthService {
     return this.generateToken({ sessionId });
   }
 }
-

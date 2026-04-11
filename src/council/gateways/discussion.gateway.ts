@@ -118,9 +118,7 @@ export class DiscussionGateway
         subscriptions.add(client.id);
       }
 
-      console.log(
-        `Client ${client.id} (user: ${userId}) connected to session ${sessionId}`,
-      );
+      console.log(`Client ${client.id} (user: ${userId}) connected to session ${sessionId}`);
 
       // Emit connected event to client
       client.emit('connected', { sessionId });
@@ -155,35 +153,26 @@ export class DiscussionGateway
   onModuleInit() {
     // Subscribe to CouncilService events and broadcast to session rooms
 
-    this.eventEmitter.on(
-      DISCUSSION_EVENTS.MESSAGE_CREATED,
-      (event: DiscussionMessageEvent) => {
-        const roomName = `session:${event.sessionId}`;
-        this.server.to(roomName).emit('message', event.message);
-      },
-    );
+    this.eventEmitter.on(DISCUSSION_EVENTS.MESSAGE_CREATED, (event: DiscussionMessageEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('message', event.message);
+    });
 
-    this.eventEmitter.on(
-      DISCUSSION_EVENTS.CONSENSUS_REACHED,
-      (event: DiscussionConsensusEvent) => {
-        const roomName = `session:${event.sessionId}`;
-        this.server.to(roomName).emit('consensus-reached', {
-          finalMessage: event.finalMessage,
-        });
-      },
-    );
+    this.eventEmitter.on(DISCUSSION_EVENTS.CONSENSUS_REACHED, (event: DiscussionConsensusEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('consensus-reached', {
+        finalMessage: event.finalMessage,
+      });
+    });
 
-    this.eventEmitter.on(
-      DISCUSSION_EVENTS.SESSION_ENDED,
-      (event: DiscussionEndedEvent) => {
-        const roomName = `session:${event.sessionId}`;
-        this.server.to(roomName).emit('session-ended', {
-          reason: event.reason,
-          consensusReached: event.consensusReached,
-          messageCount: event.messageCount,
-        });
-      },
-    );
+    this.eventEmitter.on(DISCUSSION_EVENTS.SESSION_ENDED, (event: DiscussionEndedEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('session-ended', {
+        reason: event.reason,
+        consensusReached: event.consensusReached,
+        messageCount: event.messageCount,
+      });
+    });
 
     this.eventEmitter.on(DISCUSSION_EVENTS.ERROR, (event: DiscussionErrorEvent) => {
       const roomName = `session:${event.sessionId}`;
@@ -193,18 +182,15 @@ export class DiscussionGateway
       });
     });
 
-    this.eventEmitter.on(
-      DISCUSSION_EVENTS.EXPERT_TURN_START,
-      (event: ExpertTurnStartEvent) => {
-        const roomName = `session:${event.sessionId}`;
-        this.server.to(roomName).emit('expert-turn-start', {
-          sessionId: event.sessionId,
-          expertId: event.expertId,
-          expertName: event.expertName,
-          turnNumber: event.turnNumber,
-        });
-      },
-    );
+    this.eventEmitter.on(DISCUSSION_EVENTS.EXPERT_TURN_START, (event: ExpertTurnStartEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('expert-turn-start', {
+        sessionId: event.sessionId,
+        expertId: event.expertId,
+        expertName: event.expertName,
+        turnNumber: event.turnNumber,
+      });
+    });
 
     console.log('DiscussionGateway event listeners registered');
   }
@@ -380,4 +366,3 @@ export class DiscussionGateway
     }
   }
 }
-

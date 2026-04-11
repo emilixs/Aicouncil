@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 
 /**
  * LLM Configuration DTO
- * 
+ *
  * Represents driver-specific configuration stored in the Expert model's config JSON field.
  * Each driver implementation will extract relevant fields and apply defaults for missing optional values.
  */
@@ -51,4 +51,3 @@ export class LLMConfig {
   @IsString({ each: true })
   stop?: string[];
 }
-

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { SessionStatus, MessageRole } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -46,7 +42,7 @@ export class CouncilService {
    * @param ms - Milliseconds to sleep
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -62,7 +58,9 @@ export class CouncilService {
       const session = await this.sessionService.findOne(sessionId);
 
       if (session.status !== SessionStatus.ACTIVE) {
-        this.logger.warn(`Cannot queue intervention for session ${sessionId}: session status is ${session.status}`);
+        this.logger.warn(
+          `Cannot queue intervention for session ${sessionId}: session status is ${session.status}`,
+        );
         return false;
       }
 
@@ -124,7 +122,7 @@ export class CouncilService {
 
   /**
    * Start a multi-agent discussion for a session
-   * 
+   *
    * @param sessionId - The session ID to start
    * @returns The completed session with final status
    * @throws BadRequestException if session is not in PENDING status
@@ -196,7 +194,9 @@ export class CouncilService {
         const messageCount = await this.messageService.countBySession(sessionId);
 
         if (messageCount >= session.maxMessages) {
-          this.logger.log(`Session ${sessionId} reached max messages limit (${session.maxMessages})`);
+          this.logger.log(
+            `Session ${sessionId} reached max messages limit (${session.maxMessages})`,
+          );
           break;
         }
 
@@ -233,12 +233,16 @@ export class CouncilService {
 
           // Get response from LLM
           const response = await driver.chat(contextMessages, expertConfig);
-          this.logger.log(`Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`);
+          this.logger.log(
+            `Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`,
+          );
 
           // Comment 5: Guard against empty or whitespace-only LLM responses
           const trimmedContent = response.content.trim();
           if (!trimmedContent) {
-            this.logger.warn(`Expert ${currentExpert.name} returned empty response, skipping message creation`);
+            this.logger.warn(
+              `Expert ${currentExpert.name} returned empty response, skipping message creation`,
+            );
             currentExpertIndex++;
             continue;
           }
@@ -317,7 +321,9 @@ export class CouncilService {
       // Emit session ended event
       const endReason = consensusReached
         ? 'consensus'
-        : (finalMessageCount >= session.maxMessages ? 'max_messages' : 'cancelled');
+        : finalMessageCount >= session.maxMessages
+          ? 'max_messages'
+          : 'cancelled';
 
       this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_ENDED, {
         sessionId,
@@ -332,7 +338,10 @@ export class CouncilService {
       // Return final session state
       return await this.sessionService.findOne(sessionId);
     } catch (error) {
-      this.logger.error(`Error during discussion in session ${sessionId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error during discussion in session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
 
       // Emit error event
       this.eventEmitter.emit(DISCUSSION_EVENTS.ERROR, {
@@ -356,7 +365,7 @@ export class CouncilService {
 
   /**
    * Build context messages for an expert's turn
-   * 
+   *
    * @param session - The current session
    * @param currentExpert - The expert taking the current turn
    * @param allExperts - All experts in the session
@@ -402,7 +411,7 @@ You are participating in a collaborative discussion with other experts. Work tow
 
   /**
    * Map Prisma MessageRole to LLM message role
-   * 
+   *
    * @param role - Prisma MessageRole enum value
    * @returns LLM message role
    */
@@ -449,26 +458,18 @@ You are participating in a collaborative discussion with other experts. Work tow
    * @param sessionId - The session ID to conclude
    * @param consensusReached - Whether consensus was reached
    */
-  private async concludeSession(
-    sessionId: string,
-    consensusReached: boolean,
-  ): Promise<void> {
+  private async concludeSession(sessionId: string, consensusReached: boolean): Promise<void> {
     try {
       await this.sessionService.update(sessionId, {
         status: SessionStatus.COMPLETED,
         consensusReached,
       });
 
-      this.logger.log(
-        `Session ${sessionId} concluded. Consensus: ${consensusReached}`,
-      );
+      this.logger.log(`Session ${sessionId} concluded. Consensus: ${consensusReached}`);
     } catch (error) {
       // Comment 3: Handle gracefully - only log error, don't propagate
       // This prevents transient DB failures from flipping completed discussions to CANCELLED
-      this.logger.error(
-        `Error concluding session ${sessionId}: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Error concluding session ${sessionId}: ${error.message}`, error.stack);
 
       // Emit ERROR event
       this.eventEmitter.emit(DISCUSSION_EVENTS.ERROR, {
@@ -478,4 +479,3 @@ You are participating in a collaborative discussion with other experts. Work tow
     }
   }
 }
-

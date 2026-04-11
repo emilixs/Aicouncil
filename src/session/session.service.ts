@@ -9,11 +9,7 @@ import {
 import { SessionStatus } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../common/prisma.service';
-import {
-  CreateSessionDto,
-  UpdateSessionDto,
-  SessionResponseDto,
-} from './dto';
+import { CreateSessionDto, UpdateSessionDto, SessionResponseDto } from './dto';
 
 /**
  * Service layer for session business logic and database operations.
@@ -23,9 +19,7 @@ import {
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Create a new session with the specified experts.
@@ -37,9 +31,7 @@ export class SessionService {
    * @throws NotFoundException if any expert ID is invalid
    * @throws BadRequestException if there are duplicate expert IDs
    */
-  async create(
-    createSessionDto: CreateSessionDto,
-  ): Promise<SessionResponseDto> {
+  async create(createSessionDto: CreateSessionDto): Promise<SessionResponseDto> {
     const { problemStatement, expertIds, maxMessages } = createSessionDto;
 
     // Validate that all expert IDs exist using a single batch query
@@ -59,9 +51,7 @@ export class SessionService {
 
     // Validate no duplicate expert IDs
     if (new Set(expertIds).size !== expertIds.length) {
-      throw new BadRequestException(
-        'Duplicate expert IDs are not allowed in a session',
-      );
+      throw new BadRequestException('Duplicate expert IDs are not allowed in a session');
     }
 
     try {
@@ -98,9 +88,7 @@ export class SessionService {
       });
 
       if (!session) {
-        throw new InternalServerErrorException(
-          'Failed to create session with experts',
-        );
+        throw new InternalServerErrorException('Failed to create session with experts');
       }
 
       this.logger.log(`Created session ${session.id} with ${expertIds.length} experts`);
@@ -183,20 +171,14 @@ export class SessionService {
    * @throws NotFoundException if session does not exist
    * @throws BadRequestException if status transition is invalid
    */
-  async update(
-    id: string,
-    updateSessionDto: UpdateSessionDto,
-  ): Promise<SessionResponseDto> {
+  async update(id: string, updateSessionDto: UpdateSessionDto): Promise<SessionResponseDto> {
     // Fetch current session to validate status transition
     const currentSession = await this.findOne(id);
 
     // Validate status transition if status is being updated
     if (
       updateSessionDto.status &&
-      !this.validateStatusTransition(
-        currentSession.status,
-        updateSessionDto.status,
-      )
+      !this.validateStatusTransition(currentSession.status, updateSessionDto.status)
     ) {
       const validTransitions = this.getValidTransitions(currentSession.status);
       throw new BadRequestException(
@@ -260,15 +242,9 @@ export class SessionService {
 
     switch (currentStatus) {
       case SessionStatus.PENDING:
-        return (
-          newStatus === SessionStatus.ACTIVE ||
-          newStatus === SessionStatus.CANCELLED
-        );
+        return newStatus === SessionStatus.ACTIVE || newStatus === SessionStatus.CANCELLED;
       case SessionStatus.ACTIVE:
-        return (
-          newStatus === SessionStatus.COMPLETED ||
-          newStatus === SessionStatus.CANCELLED
-        );
+        return newStatus === SessionStatus.COMPLETED || newStatus === SessionStatus.CANCELLED;
       case SessionStatus.COMPLETED:
       case SessionStatus.CANCELLED:
         // Terminal states - no transitions allowed
@@ -299,4 +275,3 @@ export class SessionService {
     }
   }
 }
-

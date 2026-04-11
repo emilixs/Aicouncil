@@ -49,4 +49,3 @@ export class ExpertController {
     return this.expertService.remove(id);
   }
 }
-

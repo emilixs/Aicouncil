@@ -28,4 +28,3 @@ import { CouncilModule } from './council/council.module';
   providers: [AppService],
 })
 export class AppModule {}
-
