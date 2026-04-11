@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ExpertService } from './expert.service';
-import { CreateExpertDto, UpdateExpertDto, ExpertResponseDto } from './dto';
+import { CreateExpertDto, UpdateExpertDto, CloneExpertDto, ExpertResponseDto } from './dto';
 
 @Controller('experts')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -43,6 +43,15 @@ export class ExpertController {
     @Body() updateExpertDto: UpdateExpertDto,
   ): Promise<ExpertResponseDto> {
     return this.expertService.update(id, updateExpertDto);
+  }
+
+  @Post(':id/clone')
+  @HttpCode(HttpStatus.CREATED)
+  clone(
+    @Param('id') id: string,
+    @Body() cloneExpertDto: CloneExpertDto,
+  ): Promise<ExpertResponseDto> {
+    return this.expertService.clone(id, cloneExpertDto);
   }
 
   @Delete(':id')
