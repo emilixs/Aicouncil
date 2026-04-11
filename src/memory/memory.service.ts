@@ -162,6 +162,8 @@ export class MemoryService {
   ): Promise<{ memories: ScoredMemory[]; ids: string[] }> {
     const allMemories = await this.prisma.expertMemory.findMany({
       where: { expertId, relevance: { gt: 0.1 } },
+      orderBy: { relevance: 'desc' },
+      take: 100,
     });
 
     if (allMemories.length === 0) {
@@ -275,7 +277,14 @@ Respond ONLY with valid JSON.`;
         expert.config as any,
       );
 
-      const parsed = JSON.parse(response.content);
+      // Strip markdown code fences if present (LLMs often wrap JSON in ```json ... ```)
+      let jsonContent = response.content.trim();
+      const fenceMatch = jsonContent.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/);
+      if (fenceMatch) {
+        jsonContent = fenceMatch[1].trim();
+      }
+
+      const parsed = JSON.parse(jsonContent);
 
       // Create SESSION_SUMMARY
       await this.prisma.expertMemory.create({
@@ -344,8 +353,10 @@ Respond ONLY with valid JSON.`;
     const deleteCount = Math.min(count - maxEntries, scored.length);
     const toDelete = scored.slice(0, deleteCount);
 
-    for (const mem of toDelete) {
-      await this.prisma.expertMemory.delete({ where: { id: mem.id } });
+    if (toDelete.length > 0) {
+      await this.prisma.expertMemory.deleteMany({
+        where: { id: { in: toDelete.map((m) => m.id) } },
+      });
     }
   }
 

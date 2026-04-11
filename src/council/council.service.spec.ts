@@ -3,6 +3,7 @@ import { CouncilService } from './council.service';
 import { SessionService } from '../session/session.service';
 import { MessageService } from '../message/message.service';
 import { DriverFactory } from '../llm/factories/driver.factory';
+import { MemoryService } from '../memory/memory.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
 import { LLMResponse } from '../llm/dto/llm-response.dto';
@@ -112,6 +113,12 @@ describe('CouncilService - Analytics Capture', () => {
       emit: jest.fn(),
     } as any;
 
+    const memoryService = {
+      getRelevantMemories: jest.fn().mockResolvedValue({ memories: [], ids: [] }),
+      formatMemoriesForInjection: jest.fn().mockReturnValue(''),
+      generateSessionMemory: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CouncilService,
@@ -119,6 +126,7 @@ describe('CouncilService - Analytics Capture', () => {
         { provide: MessageService, useValue: messageService },
         { provide: DriverFactory, useValue: driverFactory },
         { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: MemoryService, useValue: memoryService },
       ],
     }).compile();
 

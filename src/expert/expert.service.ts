@@ -25,6 +25,15 @@ export class ExpertService {
           systemPrompt: createExpertDto.systemPrompt,
           driverType: createExpertDto.driverType,
           config: createExpertDto.config as any,
+          ...(createExpertDto.memoryEnabled !== undefined && {
+            memoryEnabled: createExpertDto.memoryEnabled,
+          }),
+          ...(createExpertDto.memoryMaxEntries !== undefined && {
+            memoryMaxEntries: createExpertDto.memoryMaxEntries,
+          }),
+          ...(createExpertDto.memoryMaxInject !== undefined && {
+            memoryMaxInject: createExpertDto.memoryMaxInject,
+          }),
         },
       });
 
@@ -108,6 +117,9 @@ export class ExpertService {
           systemPrompt: existing.systemPrompt,
           driverType: existing.driverType,
           config: existing.config as any,
+          memoryEnabled: existing.memoryEnabled,
+          memoryMaxEntries: existing.memoryMaxEntries,
+          memoryMaxInject: existing.memoryMaxInject,
         },
       });
 

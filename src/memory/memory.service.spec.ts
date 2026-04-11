@@ -382,7 +382,7 @@ describe('MemoryService', () => {
           createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
         },
       ]);
-      mockPrismaService.expertMemory.delete.mockResolvedValue(undefined);
+      mockPrismaService.expertMemory.deleteMany.mockResolvedValue({ count: 1 });
 
       await service.create('exp1', { content: 'New note' });
 
@@ -396,8 +396,8 @@ describe('MemoryService', () => {
         }),
       );
       // Should delete the low-relevance summary, not the USER_NOTE
-      expect(mockPrismaService.expertMemory.delete).toHaveBeenCalledWith({
-        where: { id: 'mem-summary' },
+      expect(mockPrismaService.expertMemory.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['mem-summary'] } },
       });
     });
 
@@ -431,15 +431,14 @@ describe('MemoryService', () => {
           createdAt: new Date(),
         },
       ]);
-      mockPrismaService.expertMemory.delete.mockResolvedValue(undefined);
+      mockPrismaService.expertMemory.deleteMany.mockResolvedValue({ count: 2 });
 
       await service.create('exp1', { content: 'New note' });
 
-      // Should delete the lowest effective relevance entries first
-      const deleteCalls = mockPrismaService.expertMemory.delete.mock.calls;
-      expect(deleteCalls.length).toBe(2);
-      // The old low-relevance memory should be deleted first
-      expect(deleteCalls[0][0].where.id).toBe('mem-old-low');
+      // Should delete both entries (count 3 - maxEntries 1 = 2 to delete)
+      expect(mockPrismaService.expertMemory.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: expect.arrayContaining(['mem-old-low', 'mem-recent-high']) } },
+      });
     });
   });
 });
