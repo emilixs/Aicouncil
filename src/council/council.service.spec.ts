@@ -6,6 +6,7 @@ import { DriverFactory } from '../llm/factories/driver.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
 import { LLMResponse } from '../llm/dto/llm-response.dto';
+import { MemoryService } from '../memory/memory.service';
 
 /**
  * RED phase tests for CouncilService analytics capture.
@@ -25,6 +26,7 @@ describe('CouncilService - Analytics Capture', () => {
   let sessionService: jest.Mocked<SessionService>;
   let driverFactory: jest.Mocked<DriverFactory>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
+  let memoryService: jest.Mocked<MemoryService>;
 
   const sessionId = 'test-session-id';
   const expert1Id = 'expert-1';
@@ -112,6 +114,12 @@ describe('CouncilService - Analytics Capture', () => {
       emit: jest.fn(),
     } as any;
 
+    memoryService = {
+      getRelevantMemories: jest.fn().mockResolvedValue({ memories: [], totalFound: 0 }),
+      formatMemoriesForInjection: jest.fn().mockReturnValue(''),
+      generateSessionMemory: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CouncilService,
@@ -119,6 +127,7 @@ describe('CouncilService - Analytics Capture', () => {
         { provide: MessageService, useValue: messageService },
         { provide: DriverFactory, useValue: driverFactory },
         { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: MemoryService, useValue: memoryService },
       ],
     }).compile();
 
