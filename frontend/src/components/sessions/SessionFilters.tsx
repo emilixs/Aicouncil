@@ -1,4 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 interface SessionFiltersProps {
   onSearchChange: (value: string) => void;
@@ -6,82 +13,18 @@ interface SessionFiltersProps {
   onSortChange: (value: string) => void;
 }
 
-interface SelectOption {
-  value: string;
-  label: string;
-}
-
-const STATUS_OPTIONS: SelectOption[] = [
-  { value: "", label: "All" },
+const STATUS_OPTIONS = [
+  { value: "all", label: "All" },
   { value: "PENDING", label: "Pending" },
   { value: "ACTIVE", label: "Active" },
   { value: "COMPLETED", label: "Completed" },
 ];
 
-const SORT_OPTIONS: SelectOption[] = [
+const SORT_OPTIONS = [
   { value: "newest", label: "Newest first" },
   { value: "oldest", label: "Oldest first" },
   { value: "status", label: "By status" },
 ];
-
-function CustomSelect({
-  options,
-  onChange,
-  label,
-}: {
-  options: SelectOption[];
-  onChange: (value: string) => void;
-  label: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(options[0]);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative flex items-center gap-2">
-      <div
-        role="combobox"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-label={label}
-        tabIndex={0}
-        className="flex h-10 min-w-[140px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer"
-        onClick={() => setOpen(!open)}
-      >
-        {selected.label}
-      </div>
-      {open && (
-        <div role="listbox" className="absolute top-full z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-          {options.map((opt) => (
-            <div
-              key={opt.value}
-              role="option"
-              aria-selected={opt.value === selected.value}
-              className="px-3 py-2 text-sm cursor-pointer hover:bg-accent"
-              onClick={() => {
-                setSelected(opt);
-                onChange(opt.value);
-                setOpen(false);
-              }}
-            >
-              {opt.label}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function SessionFilters({
   onSearchChange,
@@ -90,14 +33,36 @@ export function SessionFilters({
 }: SessionFiltersProps) {
   return (
     <div className="flex gap-4 mb-4">
-      <input
+      <Input
         type="text"
         placeholder="Search sessions..."
-        className="flex h-10 w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm"
+        className="max-w-sm"
         onChange={(e) => onSearchChange(e.target.value)}
       />
-      <CustomSelect options={STATUS_OPTIONS} onChange={onStatusChange} label="Status" />
-      <CustomSelect options={SORT_OPTIONS} onChange={onSortChange} label="Sort" />
+      <Select onValueChange={(v) => onStatusChange(v === "all" ? "" : v)}>
+        <SelectTrigger className="min-w-[140px]" aria-label="Status">
+          <SelectValue placeholder="All" />
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select onValueChange={(v) => onSortChange(v)}>
+        <SelectTrigger className="min-w-[140px]" aria-label="Sort">
+          <SelectValue placeholder="Newest first" />
+        </SelectTrigger>
+        <SelectContent>
+          {SORT_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

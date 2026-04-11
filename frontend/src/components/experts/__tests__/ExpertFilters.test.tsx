@@ -22,7 +22,6 @@ describe('ExpertFilters', () => {
 
   it('renders a driver type select filter', () => {
     render(<ExpertFilters onSearchChange={() => {}} onDriverTypeChange={() => {}} />);
-    // Should have a select/dropdown for driver type filtering
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
@@ -34,7 +33,6 @@ describe('ExpertFilters', () => {
     const select = screen.getByRole('combobox');
     await user.click(select);
 
-    // Select an option
     const option = screen.getByRole('option', { name: /openai/i });
     await user.click(option);
 

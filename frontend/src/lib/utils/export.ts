@@ -47,6 +47,8 @@ export function downloadMarkdown(content: string, filename: string): void {
   const a = document.createElement("a");
   a.href = url;
   a.download = `${filename}.md`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }

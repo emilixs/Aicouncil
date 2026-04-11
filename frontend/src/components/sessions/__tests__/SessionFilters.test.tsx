@@ -38,7 +38,6 @@ describe('SessionFilters', () => {
         onSortChange={() => {}}
       />,
     );
-    // Should have status filter control
     expect(screen.getByLabelText(/status/i)).toBeInTheDocument();
   });
 

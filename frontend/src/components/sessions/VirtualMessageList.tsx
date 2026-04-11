@@ -4,7 +4,6 @@ import { MessageResponse, MessageRole } from "@/types";
 
 interface VirtualMessageListProps {
   messages: MessageResponse[];
-  consensusReached: boolean;
   loading: boolean;
 }
 

@@ -27,7 +27,6 @@ describe('VirtualMessageList', () => {
     render(
       <VirtualMessageList
         messages={messages}
-        consensusReached={false}
         loading={false}
       />,
     );
@@ -38,7 +37,7 @@ describe('VirtualMessageList', () => {
 
   it('shows loading skeleton when loading is true', () => {
     render(
-      <VirtualMessageList messages={[]} consensusReached={false} loading={true} />,
+      <VirtualMessageList messages={[]} loading={true} />,
     );
 
     // Should display skeleton placeholders
@@ -48,7 +47,7 @@ describe('VirtualMessageList', () => {
 
   it('shows empty state when no messages and not loading', () => {
     render(
-      <VirtualMessageList messages={[]} consensusReached={false} loading={false} />,
+      <VirtualMessageList messages={[]} loading={false} />,
     );
 
     expect(screen.getByText(/no messages/i)).toBeInTheDocument();
@@ -61,7 +60,6 @@ describe('VirtualMessageList', () => {
     const { container } = render(
       <VirtualMessageList
         messages={messages}
-        consensusReached={false}
         loading={false}
       />,
     );

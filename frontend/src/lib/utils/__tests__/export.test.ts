@@ -107,6 +107,9 @@ describe('downloadMarkdown', () => {
       writable: true,
     });
 
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+
     const createElement = vi.spyOn(document, 'createElement').mockReturnValue({
       href: '',
       download: '',
@@ -117,7 +120,9 @@ describe('downloadMarkdown', () => {
     downloadMarkdown('# content', 'test-session');
 
     expect(createElement).toHaveBeenCalledWith('a');
+    expect(appendChildSpy).toHaveBeenCalledOnce();
     expect(clickSpy).toHaveBeenCalledOnce();
+    expect(removeChildSpy).toHaveBeenCalledOnce();
     expect(createObjectURL).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalled();
   });
