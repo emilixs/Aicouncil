@@ -67,14 +67,12 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
 
   const onSubmit = async (values: SessionFormValues) => {
     try {
-      const payload: any = {
+      const payload: Parameters<typeof createSession>[0] = {
         problemStatement: values.problemStatement,
         expertIds: values.expertIds,
-        type: values.type,
+        type: values.type as Parameters<typeof createSession>[0]["type"],
+        ...(values.type === "DISCUSSION" ? { maxMessages: values.maxMessages } : {}),
       };
-      if (values.type === "DISCUSSION") {
-        payload.maxMessages = values.maxMessages;
-      }
       const response = await createSession(payload);
       toast({
         title: "Success",
