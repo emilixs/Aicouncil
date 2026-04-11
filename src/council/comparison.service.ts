@@ -24,7 +24,7 @@ export class ComparisonService {
   async startComparison(sessionId: string): Promise<void> {
     const session = await this.sessionService.findOne(sessionId);
 
-    if ((session as any).type !== 'COMPARISON') {
+    if (session.type !== 'COMPARISON') {
       throw new BadRequestException(
         'Session type must be COMPARISON to start a comparison',
       );
@@ -39,6 +39,10 @@ export class ComparisonService {
     // Transition to ACTIVE
     await this.sessionService.update(sessionId, {
       status: SessionStatus.ACTIVE,
+    });
+
+    this.eventEmitter.emit(COMPARISON_EVENTS.COMPARISON_STARTED, {
+      sessionId,
     });
 
     const experts = session.experts;

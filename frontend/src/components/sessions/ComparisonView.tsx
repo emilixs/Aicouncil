@@ -1,4 +1,5 @@
 import type { SessionResponse, MessageResponse } from "@/types/session";
+import ReactMarkdown from "react-markdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,7 +61,7 @@ export function ComparisonView({ session, messages, isConnected }: ComparisonVie
                     </div>
                     {/* Response content */}
                     <div className="prose prose-sm max-w-none">
-                      <p>{message.content}</p>
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
                     </div>
                   </div>
                 ) : (

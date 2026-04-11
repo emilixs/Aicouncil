@@ -1,4 +1,4 @@
-import { SessionResponse, SessionStatus } from "@/types";
+import { SessionResponse, SessionStatus, SessionType } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,6 +65,7 @@ export function SessionControls({
   };
 
   const sessionStatus = session.status || mapStatusDisplay(session.statusDisplay);
+  const isComparison = session.type === SessionType.COMPARISON;
 
   const statusColor = {
     [SessionStatus.PENDING]: "bg-yellow-100 text-yellow-800",
@@ -86,7 +87,9 @@ export function SessionControls({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Session Details</CardTitle>
-            <CardDescription>Monitor and control the discussion</CardDescription>
+            <CardDescription>
+              {isComparison ? "Monitor the comparison" : "Monitor and control the discussion"}
+            </CardDescription>
           </div>
           <Badge className={statusColor[sessionStatus]}>
             {statusIcon[sessionStatus]}
@@ -124,21 +127,32 @@ export function SessionControls({
 
         <Separator />
 
-        {/* Message Progress */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold text-sm">Message Progress</h4>
-            <span className="text-xs text-muted-foreground">
-              {messageCount} / {session.maxMessages}
-            </span>
+        {/* Message Progress (discussion only) / Expert Response Counter (comparison) */}
+        {isComparison ? (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-sm">Expert Responses</h4>
+              <span className="text-xs text-muted-foreground">
+                {messageCount} of {session.experts.length} experts responded
+              </span>
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-            />
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-sm">Message Progress</h4>
+              <span className="text-xs text-muted-foreground">
+                {messageCount} / {session.maxMessages}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <Separator />
 
@@ -164,8 +178,8 @@ export function SessionControls({
             <Alert className="border-blue-200 bg-blue-50">
               <Play className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
-                Discussion is active
-                {currentExpertTurn && (
+                {isComparison ? "Comparison is active" : "Discussion is active"}
+                {!isComparison && currentExpertTurn && (
                   <span>
                     {` - Current turn: ${currentExpertTurn.expertName} (Turn ${currentExpertTurn.turnNumber})`}
                   </span>
@@ -193,11 +207,11 @@ export function SessionControls({
             className="w-full"
           >
             <Play className="h-4 w-4 mr-2" />
-            Start Discussion
+            {isComparison ? "Start Comparison" : "Start Discussion"}
           </Button>
         )}
 
-        {sessionStatus === SessionStatus.ACTIVE && (
+        {sessionStatus === SessionStatus.ACTIVE && !isComparison && (
           <>
             <Button
               onClick={onPauseDiscussion}
@@ -223,7 +237,7 @@ export function SessionControls({
         {sessionStatus === SessionStatus.COMPLETED && (
           <Button disabled className="w-full" variant="outline">
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            Discussion Completed
+            {isComparison ? "Comparison Completed" : "Discussion Completed"}
           </Button>
         )}
       </CardFooter>
