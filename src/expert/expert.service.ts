@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../common/prisma.service';
-import { CreateExpertDto, UpdateExpertDto, ExpertResponseDto } from './dto';
+import { CreateExpertDto, UpdateExpertDto, CloneExpertDto, ExpertResponseDto } from './dto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -93,24 +93,38 @@ export class ExpertService {
     }
   }
 
-  async clone(id: string, options?: { name?: string }): Promise<ExpertResponseDto> {
+  async clone(id: string, options?: CloneExpertDto): Promise<ExpertResponseDto> {
     const existing = await this.prisma.expert.findUnique({ where: { id } });
 
     if (!existing) {
       throw new NotFoundException(`Expert with ID ${id} not found`);
     }
 
-    const cloned = await this.prisma.expert.create({
-      data: {
-        name: options?.name ?? `${existing.name} (Copy)`,
-        specialty: existing.specialty,
-        systemPrompt: existing.systemPrompt,
-        driverType: existing.driverType,
-        config: existing.config as any,
-      },
-    });
+    try {
+      const cloned = await this.prisma.expert.create({
+        data: {
+          name: options?.name ?? `${existing.name} (Copy)`,
+          specialty: existing.specialty,
+          systemPrompt: existing.systemPrompt,
+          driverType: existing.driverType,
+          config: existing.config as any,
+        },
+      });
 
-    return ExpertResponseDto.fromPrisma(cloned);
+      return ExpertResponseDto.fromPrisma(cloned);
+    } catch (error) {
+      if (error instanceof PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new ConflictException('An expert with this name already exists');
+        }
+        this.logger.error(`Prisma error cloning expert: ${error.message}`, error.stack);
+        throw new BadRequestException('Failed to clone expert due to validation error');
+      }
+      this.logger.error(`Unexpected error cloning expert: ${error.message}`, error.stack);
+      throw new InternalServerErrorException(
+        'An unexpected error occurred while cloning the expert',
+      );
+    }
   }
 
   async remove(id: string): Promise<void> {

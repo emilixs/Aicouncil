@@ -12,7 +12,7 @@ import {
   ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { ExpertService } from './expert.service';
-import { CreateExpertDto, UpdateExpertDto, ExpertResponseDto } from './dto';
+import { CreateExpertDto, UpdateExpertDto, CloneExpertDto, ExpertResponseDto } from './dto';
 
 @Controller('experts')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -47,9 +47,9 @@ export class ExpertController {
   @HttpCode(HttpStatus.CREATED)
   clone(
     @Param('id') id: string,
-    @Body() body?: { name?: string },
+    @Body() cloneExpertDto: CloneExpertDto,
   ): Promise<ExpertResponseDto> {
-    return this.expertService.clone(id, body);
+    return this.expertService.clone(id, cloneExpertDto);
   }
 
   @Delete(':id')

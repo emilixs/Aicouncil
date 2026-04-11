@@ -1,4 +1,5 @@
 import { EXPERT_TEMPLATES, ExpertTemplate } from '@/lib/constants/expert-templates';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 interface ExpertTemplatePickerProps {
   onSelect: (template: ExpertTemplate) => void;
@@ -6,16 +7,24 @@ interface ExpertTemplatePickerProps {
 
 export function ExpertTemplatePicker({ onSelect }: ExpertTemplatePickerProps) {
   return (
-    <div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {EXPERT_TEMPLATES.map((template) => (
-        <div
+        <Card
           key={template.id}
-          role="button"
-          onClick={() => onSelect(template)}
+          className="cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground"
         >
-          <div>{template.name}</div>
-          <div>{template.specialty}</div>
-        </div>
+          <button
+            type="button"
+            className="w-full text-left"
+            aria-label={`Select ${template.name} template`}
+            onClick={() => onSelect(template)}
+          >
+            <CardHeader className="p-4">
+              <CardTitle className="text-sm font-medium">{template.name}</CardTitle>
+              <CardDescription>{template.specialty}</CardDescription>
+            </CardHeader>
+          </button>
+        </Card>
       ))}
     </div>
   );

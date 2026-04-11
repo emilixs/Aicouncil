@@ -1,4 +1,4 @@
-import { DriverType } from '@/types/expert';
+import { DriverType, LLMConfig } from '@/types/expert';
 
 export interface ExpertTemplate {
   id: string;
@@ -6,7 +6,7 @@ export interface ExpertTemplate {
   specialty: string;
   systemPrompt: string;
   driverType: DriverType;
-  config: { model: string; temperature?: number; maxTokens?: number };
+  config: LLMConfig;
 }
 
 export const EXPERT_TEMPLATES: ExpertTemplate[] = [
