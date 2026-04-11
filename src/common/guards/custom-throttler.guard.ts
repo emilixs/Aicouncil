@@ -5,12 +5,18 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerLimitDetail } from '@nestjs/throttler/dist/throttler.guard.interface';
+
+// NOTE: For deployments behind a reverse proxy (e.g. nginx, CloudFront),
+// override getTracker() to extract the real client IP from X-Forwarded-For
+// or similar headers. The default implementation uses req.ip, which will
+// be the proxy's IP and cause all clients to share a single rate limit bucket.
 
 @Injectable()
 export class CustomThrottlerGuard extends ThrottlerGuard {
   protected async throwThrottlingException(
     context: ExecutionContext,
-    throttlerLimitDetail: any,
+    throttlerLimitDetail: ThrottlerLimitDetail,
   ): Promise<void> {
     const ttlSeconds = Math.ceil(throttlerLimitDetail.ttl / 1000);
 
