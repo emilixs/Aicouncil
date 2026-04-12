@@ -27,7 +27,6 @@ export function TokenUsageChart({ sessions }: TokenUsageChartProps) {
         ? s.problemStatement.slice(0, 20) + '...'
         : s.problemStatement,
     tokens: s.totalTokens,
-    cost: s.estimatedCostUsd,
   }));
 
   return (
@@ -57,7 +56,7 @@ export function TokenUsageChart({ sessions }: TokenUsageChartProps) {
                 <Legend />
                 <Bar
                   dataKey="tokens"
-                  fill="hsl(var(--primary))"
+                  fill="hsl(var(--chart-1))"
                   name="Tokens"
                   radius={[4, 4, 0, 0]}
                 />

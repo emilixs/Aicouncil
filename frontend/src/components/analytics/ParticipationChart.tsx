@@ -19,14 +19,14 @@ interface ParticipationChartProps {
 }
 
 const COLORS = [
-  'hsl(221, 83%, 53%)',
-  'hsl(142, 71%, 45%)',
-  'hsl(38, 92%, 50%)',
-  'hsl(0, 84%, 60%)',
-  'hsl(262, 83%, 58%)',
-  'hsl(199, 89%, 48%)',
-  'hsl(330, 81%, 60%)',
-  'hsl(25, 95%, 53%)',
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-8))',
 ];
 
 export function ParticipationChart({ experts }: ParticipationChartProps) {
