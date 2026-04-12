@@ -61,7 +61,7 @@ describe('TokenUsageChart', () => {
     render(<TokenUsageChart sessions={mockSessions} />);
     expect(screen.getByTestId('bar-tokens')).toHaveAttribute(
       'data-fill',
-      'hsl(var(--primary))',
+      'hsl(var(--chart-1))',
     );
   });
 

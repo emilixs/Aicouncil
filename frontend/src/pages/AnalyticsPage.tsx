@@ -92,7 +92,7 @@ export default function AnalyticsPage() {
         <div className="flex items-center gap-4 flex-wrap">
           <DateRangeFilter onFilter={handleFilterChange} />
           <span className="text-xs text-muted-foreground">
-            Date filter applies to overview metrics only
+            Date filter applies to all data
           </span>
           <Button
             variant="outline"
@@ -109,7 +109,7 @@ export default function AnalyticsPage() {
       {loading ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
               <Skeleton key={i} className="h-24 w-full rounded-lg" />
             ))}
           </div>
