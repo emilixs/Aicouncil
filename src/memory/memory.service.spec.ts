@@ -68,10 +68,13 @@ describe('MemoryService', () => {
 
       mockPrismaService.expert.findUnique.mockResolvedValue({ id: 'exp1' });
       mockPrismaService.expertMemory.findMany.mockResolvedValue(mockMemories);
+      mockPrismaService.expertMemory.count.mockResolvedValue(1);
 
       const result = await service.findAllByExpert('exp1');
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('mem1');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe('mem1');
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
     });
 
     it('should throw NotFoundException for non-existent expert', async () => {
@@ -166,6 +169,49 @@ describe('MemoryService', () => {
       await expect(service.clearAllByExpert('exp1')).resolves.not.toThrow();
       expect(mockPrismaService.expertMemory.deleteMany).toHaveBeenCalledWith({
         where: { expertId: 'exp1' },
+      });
+    });
+  });
+
+  describe('pruneMemories (via create)', () => {
+    it('should not delete USER_NOTE entries when pruning', async () => {
+      const mockExpert = { id: 'exp1', memoryMaxEntries: 2 };
+
+      mockPrismaService.expert.findUnique.mockResolvedValue(mockExpert);
+      mockPrismaService.expertMemory.create.mockResolvedValue({
+        id: 'mem-new',
+        expertId: 'exp1',
+        type: MemoryType.USER_NOTE,
+        content: 'New note',
+        relevance: 1.0,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      // Over limit: 3 total, max 2
+      mockPrismaService.expertMemory.count.mockResolvedValue(3);
+      // Only non-USER_NOTE candidates returned (USER_NOTE excluded by query)
+      mockPrismaService.expertMemory.findMany.mockResolvedValue([
+        {
+          id: 'mem-summary',
+          relevance: 0.5,
+          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        },
+      ]);
+      mockPrismaService.expertMemory.delete.mockResolvedValue(undefined);
+
+      await service.create('exp1', { content: 'New note' });
+
+      // Should delete the SESSION_SUMMARY, not any USER_NOTE
+      expect(mockPrismaService.expertMemory.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            type: { not: MemoryType.USER_NOTE },
+          }),
+        }),
+      );
+      expect(mockPrismaService.expertMemory.delete).toHaveBeenCalledWith({
+        where: { id: 'mem-summary' },
       });
     });
   });

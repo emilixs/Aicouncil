@@ -238,7 +238,9 @@ describe('CouncilService — Memory Integration', () => {
 
       await service.startDiscussion('sess1');
 
-      // Verify memory generation was called for each memory-enabled expert
+      // Memory generation is now non-blocking — flush microtasks
+      await new Promise((r) => process.nextTick(r));
+
       expect(mockMemoryService.generateSessionMemory).toHaveBeenCalledWith(
         'exp1',
         'sess1',
