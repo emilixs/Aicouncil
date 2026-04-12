@@ -164,7 +164,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Invalid intervention content',
+        message: 'Invalid intervention content',
       });
       expect(councilService.queueIntervention).not.toHaveBeenCalled();
     });
@@ -404,7 +404,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Session ID mismatch',
+        message: 'Session ID mismatch',
       });
     });
   });
@@ -417,7 +417,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Session ID mismatch',
+        message: 'Session ID mismatch',
       });
     });
 
@@ -434,7 +434,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(noAuthClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Unauthorized',
+        message: 'Unauthorized',
       });
     });
 
@@ -447,7 +447,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Intervention rejected: session not ACTIVE or failed to queue',
+        message: 'Intervention rejected: session not ACTIVE or failed to queue',
       });
     });
 
@@ -471,7 +471,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Invalid intervention content',
+        message: 'Invalid intervention content',
       });
     });
   });
@@ -484,7 +484,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Session ID mismatch',
+        message: 'Session ID mismatch',
       });
     });
 
@@ -499,7 +499,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'not running',
+        message: 'not running',
       });
     });
   });
@@ -512,7 +512,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Session ID mismatch',
+        message: 'Session ID mismatch',
       });
     });
 
@@ -527,7 +527,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'not paused',
+        message: 'not paused',
       });
     });
   });
@@ -540,7 +540,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Session ID mismatch',
+        message: 'Session ID mismatch',
       });
     });
 
@@ -555,7 +555,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'not active',
+        message: 'not active',
       });
     });
   });
@@ -568,7 +568,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Session ID mismatch',
+        message: 'Session ID mismatch',
       });
     });
   });
@@ -581,7 +581,7 @@ describe('DiscussionGateway', () => {
       );
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
-        error: 'Session ID mismatch',
+        message: 'Session ID mismatch',
       });
     });
   });
@@ -656,7 +656,7 @@ describe('DiscussionGateway', () => {
 
         expect(mockServer.to).toHaveBeenCalledWith('session:session-1');
         expect(mockServer.emit).toHaveBeenCalledWith('error', {
-          error: 'something failed',
+          message: 'something failed',
           expertId: 'expert-1',
         });
       }
