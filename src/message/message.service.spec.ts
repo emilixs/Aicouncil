@@ -65,7 +65,7 @@ describe('MessageService - Analytics Fields', () => {
     promptTokens: 150,
     completionTokens: 50,
     totalTokens: 200,
-    model: 'claude-3-sonnet-20240229',
+    model: 'claude-sonnet-4-6',
     responseTimeMs: 1200,
     finishReason: 'stop',
     expert: { id: expertId, name: 'Test Expert', specialty: 'Testing' },
@@ -98,7 +98,7 @@ describe('MessageService - Analytics Fields', () => {
         promptTokens: 150,
         completionTokens: 50,
         totalTokens: 200,
-        model: 'claude-3-sonnet-20240229',
+        model: 'claude-sonnet-4-6',
         responseTimeMs: 1200,
         finishReason: 'stop',
       });
@@ -107,7 +107,7 @@ describe('MessageService - Analytics Fields', () => {
       expect(result.promptTokens).toBe(150);
       expect(result.completionTokens).toBe(50);
       expect(result.totalTokens).toBe(200);
-      expect(result.model).toBe('claude-3-sonnet-20240229');
+      expect(result.model).toBe('claude-sonnet-4-6');
       expect(result.responseTimeMs).toBe(1200);
       expect(result.finishReason).toBe('stop');
     });
@@ -168,7 +168,7 @@ describe('MessageService - Analytics Fields', () => {
       expect(result[0].promptTokens).toBe(150);
       expect(result[0].completionTokens).toBe(50);
       expect(result[0].totalTokens).toBe(200);
-      expect(result[0].model).toBe('claude-3-sonnet-20240229');
+      expect(result[0].model).toBe('claude-sonnet-4-6');
       expect(result[0].responseTimeMs).toBe(1200);
       expect(result[0].finishReason).toBe('stop');
     });

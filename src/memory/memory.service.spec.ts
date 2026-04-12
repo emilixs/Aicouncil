@@ -231,7 +231,7 @@ describe('MemoryService', () => {
         id: 'exp1',
         memoryEnabled: true,
         driverType: 'OPENAI',
-        config: { model: 'gpt-4' },
+        config: { model: 'gpt-5.4-mini' },
       });
       mockMessageService.findBySession.mockResolvedValue([
         {
@@ -267,7 +267,7 @@ describe('MemoryService', () => {
         memoryEnabled: true,
         memoryMaxEntries: 50,
         driverType: 'OPENAI',
-        config: { model: 'gpt-4' },
+        config: { model: 'gpt-5.4-mini' },
       });
       mockMessageService.findBySession.mockResolvedValue([
         {

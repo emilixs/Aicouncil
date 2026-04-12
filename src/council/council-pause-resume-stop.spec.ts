@@ -38,7 +38,7 @@ describe('CouncilService - Pause/Resume/Stop', () => {
           specialty: 'Testing',
           systemPrompt: 'You are expert one',
           driverType: DriverType.ANTHROPIC,
-          config: { model: 'claude-3-sonnet-20240229', temperature: 0.7 },
+          config: { model: 'claude-sonnet-4-6', temperature: 0.7 },
           createdAt: new Date(),
           updatedAt: new Date(),
         },

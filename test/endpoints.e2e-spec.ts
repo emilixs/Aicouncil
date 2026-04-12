@@ -14,7 +14,7 @@ describe('Endpoints (e2e)', () => {
     specialty: 'Testing',
     systemPrompt: 'You are a test expert',
     driverType: 'OPENAI',
-    config: { model: 'gpt-4' },
+    config: { model: 'gpt-5.4-mini' },
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-01'),
   };
@@ -118,7 +118,7 @@ describe('Endpoints (e2e)', () => {
           specialty: 'Testing',
           systemPrompt: 'You are a test expert',
           driverType: 'OPENAI',
-          config: { model: 'gpt-4' },
+          config: { model: 'gpt-5.4-mini' },
         },
       });
 

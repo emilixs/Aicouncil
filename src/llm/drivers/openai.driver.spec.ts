@@ -24,7 +24,7 @@ const makeMessages = (): LLMMessage[] => [
   { role: 'user', content: 'Hello' },
 ];
 
-const defaultConfig: LLMConfig = { model: 'gpt-4' } as LLMConfig;
+const defaultConfig: LLMConfig = { model: 'gpt-5.4-mini' } as LLMConfig;
 
 const makeSuccessResponse = (overrides: Partial<{
   content: string;
@@ -40,7 +40,7 @@ const makeSuccessResponse = (overrides: Partial<{
       finish_reason: overrides.finishReason ?? 'stop',
     },
   ],
-  model: overrides.model ?? 'gpt-4',
+  model: overrides.model ?? 'gpt-5.4-mini',
   usage: {
     prompt_tokens: overrides.promptTokens ?? 10,
     completion_tokens: overrides.completionTokens ?? 20,
@@ -103,7 +103,7 @@ describe('OpenAIDriver', () => {
         temperature: 0.2,
         maxTokens: 512,
         topP: 0.9,
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4.1-nano',
       };
 
       await driver.chat(makeMessages(), config);
@@ -113,7 +113,7 @@ describe('OpenAIDriver', () => {
           temperature: 0.2,
           max_tokens: 512,
           top_p: 0.9,
-          model: 'gpt-3.5-turbo',
+          model: 'gpt-4.1-nano',
           stream: false,
         }),
       );

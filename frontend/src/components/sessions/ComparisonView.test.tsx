@@ -21,7 +21,7 @@ describe('ComparisonView', () => {
         specialty: 'Backend',
         systemPrompt: 'You are a backend expert.',
         driverType: DriverType.OPENAI,
-        config: { model: 'gpt-4' },
+        config: { model: 'gpt-5.4-mini' },
         createdAt: '2025-01-01T00:00:00Z',
         updatedAt: '2025-01-01T00:00:00Z',
       },
@@ -50,7 +50,7 @@ describe('ComparisonView', () => {
     expertSpecialty: 'Backend',
     durationMs: 1500,
     tokenCount: 300,
-    modelUsed: 'gpt-4',
+    modelUsed: 'gpt-5.4-mini',
     ...overrides,
   });
 
@@ -63,7 +63,7 @@ describe('ComparisonView', () => {
         content: 'GPT response here.',
         durationMs: 1200,
         tokenCount: 250,
-        modelUsed: 'gpt-4',
+        modelUsed: 'gpt-5.4-mini',
       }),
       makeMessage({
         id: 'msg-2',
@@ -101,7 +101,7 @@ describe('ComparisonView', () => {
         expertName: 'GPT Expert',
         durationMs: 1500,
         tokenCount: 300,
-        modelUsed: 'gpt-4',
+        modelUsed: 'gpt-5.4-mini',
       }),
       makeMessage({
         id: 'msg-2',
@@ -130,7 +130,7 @@ describe('ComparisonView', () => {
     expect(screen.getAllByText(/220/).length).toBeGreaterThanOrEqual(1);
 
     // Model names should be displayed
-    expect(screen.getAllByText(/gpt-4/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/gpt-5\.4-mini/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/claude-sonnet-4-20250514/).length).toBeGreaterThanOrEqual(1);
   });
 
@@ -163,7 +163,7 @@ describe('ComparisonView', () => {
           specialty: 'Creative',
           systemPrompt: 'You are a creative expert.',
           driverType: DriverType.GROK,
-          config: { model: 'grok-2' },
+          config: { model: 'grok-4.20-0309-reasoning' },
           createdAt: '2025-01-01T00:00:00Z',
           updatedAt: '2025-01-01T00:00:00Z',
         },

@@ -170,7 +170,7 @@ describe('Rate Limiting (e2e)', () => {
         specialty: 'Testing',
         systemPrompt: 'You are a test expert for rate limiting validation.',
         driverType: 'ANTHROPIC',
-        config: { model: 'claude-3-haiku-20240307', temperature: 0.7, maxTokens: 100 },
+        config: { model: 'claude-haiku-4-5', temperature: 0.7, maxTokens: 100 },
       };
 
       const responses = await makeRequests('POST', '/experts', 11, expertPayload);

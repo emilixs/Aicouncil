@@ -31,7 +31,7 @@ describe('CouncilController', () => {
           name: 'Expert 1',
           specialty: 'Testing',
           driverType: DriverType.OPENAI,
-          config: { model: 'gpt-4' },
+          config: { model: 'gpt-5.4-mini' },
           createdAt: new Date(),
           updatedAt: new Date(),
         },

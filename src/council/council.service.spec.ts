@@ -35,7 +35,7 @@ describe('CouncilService - Analytics Capture', () => {
         specialty: 'Testing',
         systemPrompt: 'You are expert one',
         driverType: DriverType.ANTHROPIC,
-        config: { model: 'claude-3-sonnet-20240229', temperature: 0.7 },
+        config: { model: 'claude-sonnet-4-6', temperature: 0.7 },
         memoryEnabled: true,
         memoryMaxEntries: 50,
         memoryMaxInject: 5,
@@ -48,7 +48,7 @@ describe('CouncilService - Analytics Capture', () => {
         specialty: 'Analysis',
         systemPrompt: 'You are expert two',
         driverType: DriverType.ANTHROPIC,
-        config: { model: 'claude-3-sonnet-20240229', temperature: 0.7 },
+        config: { model: 'claude-sonnet-4-6', temperature: 0.7 },
         memoryEnabled: true,
         memoryMaxEntries: 50,
         memoryMaxInject: 5,
@@ -68,7 +68,7 @@ describe('CouncilService - Analytics Capture', () => {
       completionTokens: 50,
       totalTokens: 150,
     },
-    model: 'claude-3-sonnet-20240229',
+    model: 'claude-sonnet-4-6',
     ...overrides,
   });
 

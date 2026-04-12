@@ -61,7 +61,7 @@ describe('useWebSocket — comparison events', () => {
       expertSpecialty: 'Backend',
       durationMs: 1200,
       tokenCount: 300,
-      modelUsed: 'gpt-4',
+      modelUsed: 'gpt-5.4-mini',
     };
 
     act(() => {
