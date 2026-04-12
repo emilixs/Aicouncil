@@ -32,7 +32,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', { exclude: ['health'] });
 
   // Swagger/OpenAPI setup
   const swaggerConfig = new DocumentBuilder()
