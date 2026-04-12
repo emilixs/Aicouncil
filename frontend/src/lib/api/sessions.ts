@@ -26,11 +26,6 @@ export async function getSessionMessages(id: string): Promise<MessageResponse[]>
   return response.data;
 }
 
-export async function startSession(id: string): Promise<SessionResponse> {
-  const response = await apiClient.post<SessionResponse>(`/sessions/${id}/start`);
-  return response.data;
-}
-
 export async function getSessionToken(id: string): Promise<TokenResponse> {
   const response = await apiClient.post<TokenResponse>(`/sessions/${id}/token`);
   localStorage.setItem('session_token', response.data.token);
