@@ -162,17 +162,19 @@ export class MemoryService {
           effectiveRelevance: memScore,
         };
       })
-      .filter((mem) => {
-        const eff = calculateEffectiveRelevance(mem.relevance, mem.createdAt);
-        return eff > 0.1;
-      })
+      .filter((mem) => mem.effectiveRelevance > 0.1)
       .sort((a, b) => b.effectiveRelevance - a.effectiveRelevance)
       .slice(0, maxInject);
 
     const TOKEN_BUDGET = 3000;
-    const MAX_FALLBACK = 3;
-    const totalTokens = scored.reduce((sum, m) => sum + Math.ceil(m.content.length / 4), 0);
-    const result = totalTokens > TOKEN_BUDGET ? scored.slice(0, MAX_FALLBACK) : scored;
+    const result: ScoredMemory[] = [];
+    let tokenSum = 0;
+    for (const mem of scored) {
+      const memTokens = Math.ceil(mem.content.length / 4);
+      if (tokenSum + memTokens > TOKEN_BUDGET) break;
+      tokenSum += memTokens;
+      result.push(mem);
+    }
 
     return {
       memories: result,
@@ -233,7 +235,8 @@ Respond ONLY with valid JSON.`;
       const driver = this.driverFactory.createDriver(expert.driverType);
       const response = await driver.chat([{ role: 'user', content: prompt }], expert.config as any);
 
-      const parsed = JSON.parse(response.content);
+      const cleaned = response.content.replace(/^```(?:json)?\s*\n?/m, '').replace(/\n?```\s*$/m, '');
+      const parsed = JSON.parse(cleaned);
 
       // Create SESSION_SUMMARY
       await this.prisma.expertMemory.create({
@@ -293,8 +296,10 @@ Respond ONLY with valid JSON.`;
     const deleteCount = count - maxEntries;
     const toDelete = scored.slice(0, deleteCount);
 
-    for (const mem of toDelete) {
-      await this.prisma.expertMemory.delete({ where: { id: mem.id } });
+    if (toDelete.length > 0) {
+      await this.prisma.expertMemory.deleteMany({
+        where: { id: { in: toDelete.map((m) => m.id) } },
+      });
     }
   }
 
