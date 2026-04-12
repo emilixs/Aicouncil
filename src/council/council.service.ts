@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionService } from '../session/session.service';
 import { MessageService } from '../message/message.service';
 import { DriverFactory } from '../llm/factories/driver.factory';
+import { ConsensusService } from '../consensus/consensus.service';
 import { SessionResponseDto } from '../session/dto';
 import { ExpertResponseDto } from '../expert/dto';
 import { MessageResponseDto } from '../message/dto';
@@ -39,6 +40,7 @@ export class CouncilService {
     private readonly messageService: MessageService,
     private readonly driverFactory: DriverFactory,
     private readonly eventEmitter: EventEmitter2,
+    private readonly consensusService: ConsensusService,
   ) {}
 
   /**
@@ -271,6 +273,7 @@ export class CouncilService {
       let consensusReached = false;
       let currentRound = 1;
       let stopped = false;
+      let lastStallResult: { stalled: boolean; stalledRounds: number } | undefined;
 
       while (!consensusReached && !stopped) {
         const controlFlag = this.sessionControlFlags.get(sessionId);
@@ -354,19 +357,6 @@ export class CouncilService {
             message,
           } as DiscussionMessageEvent);
 
-          consensusReached = this.detectConsensus(trimmedContent);
-
-          if (consensusReached) {
-            this.logger.log(`Consensus detected in session ${sessionId}`);
-
-            this.eventEmitter.emit(DISCUSSION_EVENTS.CONSENSUS_REACHED, {
-              sessionId,
-              consensusReached: true,
-              finalMessage: message,
-            } as DiscussionConsensusEvent);
-
-            break;
-          }
         } catch (error) {
           this.eventEmitter.emit(DISCUSSION_EVENTS.ERROR, {
             sessionId,
@@ -396,15 +386,51 @@ export class CouncilService {
 
         if (currentExpertIndex % experts.length === 0) {
           currentRound++;
+
+          const evaluation = await this.consensusService.evaluateConsensus(
+            sessionId,
+            session,
+            experts,
+            currentRound - 1,
+          );
+
+          const threshold = (session as any).consensusThreshold ?? 0.8;
+          if (
+            evaluation.consensusReached &&
+            evaluation.convergenceScore >= threshold
+          ) {
+            consensusReached = true;
+            this.logger.log(`Consensus detected in session ${sessionId} (score: ${evaluation.convergenceScore})`);
+
+            this.eventEmitter.emit(DISCUSSION_EVENTS.CONSENSUS_REACHED, {
+              sessionId,
+              consensusReached: true,
+              finalMessage: null,
+            } as DiscussionConsensusEvent);
+
+            break;
+          }
+
+          const stallResult = this.consensusService.checkStallDetection(sessionId, evaluation);
+          lastStallResult = stallResult;
+          if (stallResult.stalled) {
+            this.logger.log(`Session ${sessionId} stalled after ${stallResult.stalledRounds} rounds`);
+            break;
+          }
+
+          if (
+            evaluation.convergenceScore >= 0.7 &&
+            !evaluation.consensusReached &&
+            !(await this.consensusService.hasAutoPolledSession(sessionId))
+          ) {
+            const leadingProposal = evaluation.areasOfAgreement[0];
+            if (leadingProposal) {
+              await this.consensusService.createPoll(sessionId, leadingProposal, 'system');
+            }
+          }
         }
 
         await this.sleep(200);
-      }
-
-      if (stopped) {
-        await this.sessionService.update(sessionId, { status: SessionStatus.CANCELLED });
-      } else {
-        await this.concludeSession(sessionId, consensusReached);
       }
 
       const finalMessageCount = await this.messageService.countBySession(sessionId);
@@ -413,9 +439,17 @@ export class CouncilService {
         ? 'consensus'
         : stopped
           ? 'cancelled'
-          : finalMessageCount >= session.maxMessages
-            ? 'max_messages'
-            : 'cancelled';
+          : lastStallResult?.stalled
+            ? 'stalled'
+            : finalMessageCount >= session.maxMessages
+              ? 'max_messages'
+              : 'cancelled';
+
+      if (stopped) {
+        await this.sessionService.update(sessionId, { status: SessionStatus.CANCELLED });
+      } else {
+        await this.concludeSession(sessionId, consensusReached);
+      }
 
       this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_ENDED, {
         sessionId,
@@ -424,9 +458,14 @@ export class CouncilService {
         messageCount: finalMessageCount,
       } as DiscussionEndedEvent);
 
+      this.consensusService
+        .generateSummary(sessionId, session, experts, endReason)
+        .catch((err) => this.logger.error(`Summary generation failed: ${err.message}`));
+
       this.interventionQueues.delete(sessionId);
       this.sessionControlFlags.delete(sessionId);
       this.pauseResolvers.delete(sessionId);
+      this.consensusService.clearSessionState(sessionId);
     } catch (error) {
       this.logger.error(
         `Error during discussion in session ${sessionId}: ${error.message}`,
@@ -447,6 +486,7 @@ export class CouncilService {
       this.interventionQueues.delete(sessionId);
       this.sessionControlFlags.delete(sessionId);
       this.pauseResolvers.delete(sessionId);
+      this.consensusService.clearSessionState(sessionId);
 
       throw error;
     }
@@ -483,7 +523,7 @@ Participating Experts:
 ${expertList}
 
 Instructions:
-You are participating in a collaborative discussion with other experts. Work towards consensus on the problem statement. When consensus is reached, explicitly state "I agree" or "consensus reached" in your response. You can reference other experts by name in your discussion.`,
+You are participating in a collaborative discussion with other experts. Engage substantively with the problem and with other experts' positions. Express agreement or disagreement with specific points. Build on good ideas and challenge weak ones. You can reference other experts by name.`,
     };
 
     // Convert recent messages to LLM format
@@ -515,30 +555,6 @@ You are participating in a collaborative discussion with other experts. Work tow
       default:
         return 'user';
     }
-  }
-
-  /**
-   * Detect if consensus has been reached based on message content
-   *
-   * @param messageContent - The message content to analyze
-   * @returns True if consensus keywords are detected
-   */
-  private detectConsensus(messageContent: string): boolean {
-    // Comment 2: Extended consensus detection keywords
-    const keywords = [
-      'i agree',
-      'consensus reached',
-      'we agree',
-      'i concur',
-      'agreed',
-      'we have consensus',
-      'we reached consensus',
-      'in agreement',
-    ];
-
-    const contentLower = messageContent.toLowerCase();
-
-    return keywords.some((keyword) => contentLower.includes(keyword));
   }
 
   /**
