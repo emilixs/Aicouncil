@@ -13,6 +13,8 @@ import { MemoryType } from '@prisma/client';
 import { MemoryService } from './memory.service';
 import { CreateMemoryDto, UpdateMemoryDto, MemoryResponseDto } from './dto';
 
+const VALID_MEMORY_TYPES = new Set(Object.values(MemoryType));
+
 @Controller('experts/:expertId/memories')
 export class MemoryController {
   constructor(private readonly memoryService: MemoryService) {}
@@ -20,15 +22,19 @@ export class MemoryController {
   @Get()
   async findAll(
     @Param('expertId') expertId: string,
-    @Query('type') type?: MemoryType,
+    @Query('type') type?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
+    if (type && !VALID_MEMORY_TYPES.has(type as MemoryType)) {
+      throw new BadRequestException(`Invalid memory type: ${type}. Valid types: ${[...VALID_MEMORY_TYPES].join(', ')}`);
+    }
+
     const parsedPage = page ? parseInt(page, 10) : 1;
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
 
     const { data, total } = await this.memoryService.findAllByExpert(expertId, {
-      type,
+      type: type as MemoryType,
       page: parsedPage,
       limit: parsedLimit,
     });

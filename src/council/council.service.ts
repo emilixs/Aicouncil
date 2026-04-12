@@ -212,7 +212,7 @@ export class CouncilService {
       );
     }
 
-    const experts = session.experts.map((e: any) => (e.expert ? e.expert : e));
+    const experts = session.experts;
 
     if (experts.length === 0) {
       throw new BadRequestException(
@@ -300,8 +300,8 @@ export class CouncilService {
 
         let memoryText = '';
         let injectedMemoryIds: string[] = [];
-        if ((currentExpert as any).memoryEnabled) {
-          const maxInject = (currentExpert as any).memoryMaxInject ?? 5;
+        if (currentExpert.memoryEnabled) {
+          const maxInject = currentExpert.memoryMaxInject ?? 5;
           const memResult = await this.memoryService.getRelevantMemories(
             currentExpert.id,
             session.problemStatement,
@@ -423,7 +423,7 @@ export class CouncilService {
 
       // Generate memory for each memory-enabled expert (non-blocking)
       const memoryPromises = experts
-        .filter((expert) => (expert as any).memoryEnabled)
+        .filter((expert) => expert.memoryEnabled)
         .map((expert) =>
           this.memoryService.generateSessionMemory(expert.id, sessionId).catch((error) => {
             this.logger.error(
