@@ -56,9 +56,24 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           }
         });
 
-        newSocket.on("disconnect", () => {
+        newSocket.on("disconnect", (reason) => {
           if (isMounted) {
             setIsConnected(false);
+            if (reason === "io server disconnect") {
+              newSocket.connect();
+            }
+          }
+        });
+
+        newSocket.on("connect_error", (err) => {
+          if (isMounted) {
+            console.warn(`WebSocket connect_error: ${err.message}`);
+          }
+        });
+
+        newSocket.io.on("reconnect_failed", () => {
+          if (isMounted) {
+            setError("Connection failed after multiple attempts. Please refresh the page.");
           }
         });
 
