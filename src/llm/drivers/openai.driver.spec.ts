@@ -244,6 +244,7 @@ describe('OpenAIDriver', () => {
     });
 
     it('parses retryAfter from response headers on 429', async () => {
+      expect.assertions(2);
       mockCreate.mockRejectedValue({
         status: 429,
         response: { headers: { 'retry-after': '5' } },
