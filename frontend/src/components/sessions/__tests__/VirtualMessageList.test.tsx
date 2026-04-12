@@ -57,7 +57,7 @@ describe('VirtualMessageList', () => {
     const messages = Array.from({ length: 50 }, (_, i) =>
       createMessage({ id: `msg-${i}`, content: `Message ${i}` }),
     );
-    const { container } = render(
+    render(
       <VirtualMessageList
         messages={messages}
         loading={false}
