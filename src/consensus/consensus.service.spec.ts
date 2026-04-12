@@ -232,4 +232,177 @@ describe('ConsensusService', () => {
       expect(mockDriver.chat.mock.calls.length).toBeGreaterThanOrEqual(4);
     });
   });
+
+  describe('createPoll', () => {
+    it('should create a poll and emit event', async () => {
+      prisma.poll.create.mockResolvedValue({
+        id: 'poll-1',
+        sessionId: 'session-1',
+        proposal: 'Use REST for the API',
+        createdBy: 'user',
+        status: 'open',
+        createdAt: new Date(),
+        closedAt: null,
+      } as any);
+
+      const result = await service.createPoll('session-1', 'Use REST for the API', 'user');
+
+      expect(result.id).toBe('poll-1');
+      expect(result.proposal).toBe('Use REST for the API');
+      expect(prisma.poll.create).toHaveBeenCalledWith({
+        data: {
+          sessionId: 'session-1',
+          proposal: 'Use REST for the API',
+          createdBy: 'user',
+        },
+      });
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'discussion.poll.created',
+        expect.objectContaining({ sessionId: 'session-1', pollId: 'poll-1' }),
+      );
+    });
+  });
+
+  describe('extractVote', () => {
+    it('should extract a structured vote from expert response', async () => {
+      const voteJson = { vote: 'agree', reasoning: 'REST is the right choice.' };
+
+      mockDriver.chat.mockResolvedValue({
+        content: JSON.stringify(voteJson),
+        model: 'claude-sonnet-4-20250514',
+        finishReason: 'stop',
+      });
+
+      prisma.pollVote.create.mockResolvedValue({
+        id: 'vote-1',
+        pollId: 'poll-1',
+        expertId: 'e1',
+        vote: 'agree',
+        reasoning: 'REST is the right choice.',
+        createdAt: new Date(),
+      } as any);
+
+      const result = await service.extractVote(
+        'poll-1',
+        'Use REST for the API',
+        'e1',
+        'Alice',
+        'session-1',
+        'Yes, I fully support using REST.',
+      );
+
+      expect(result.vote).toBe('agree');
+      expect(prisma.pollVote.create).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'discussion.poll.vote',
+        expect.objectContaining({ pollId: 'poll-1', expertId: 'e1', vote: 'agree' }),
+      );
+    });
+  });
+
+  describe('closePoll', () => {
+    it('should close poll and emit results', async () => {
+      prisma.poll.update.mockResolvedValue({
+        id: 'poll-1',
+        sessionId: 'session-1',
+        status: 'closed',
+        closedAt: new Date(),
+        votes: [
+          { expertId: 'e1', vote: 'agree', reasoning: 'Good idea' },
+          { expertId: 'e2', vote: 'disagree', reasoning: 'Prefer GraphQL' },
+        ],
+      } as any);
+
+      const result = await service.closePoll('poll-1', 'session-1');
+
+      expect(result.status).toBe('closed');
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'discussion.poll.closed',
+        expect.objectContaining({
+          pollId: 'poll-1',
+          results: { agree: 1, disagree: 1, agreeWithReservations: 0 },
+        }),
+      );
+    });
+  });
+
+  describe('hasAutoPolledSession', () => {
+    it('should return false when no system polls exist', async () => {
+      prisma.poll.findFirst.mockResolvedValue(null);
+      const result = await service.hasAutoPolledSession('session-1');
+      expect(result).toBe(false);
+    });
+
+    it('should return true when a system poll exists', async () => {
+      prisma.poll.findFirst.mockResolvedValue({ id: 'poll-1' } as any);
+      const result = await service.hasAutoPolledSession('session-1');
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('checkStallDetection', () => {
+    it('should emit stalled event after 2 consecutive stalled rounds', () => {
+      const stalledEval = {
+        convergenceScore: 0.4,
+        consensusReached: false,
+        areasOfAgreement: [],
+        areasOfDisagreement: ['Everything'],
+        progressAssessment: 'stalled' as const,
+        reasoning: 'No progress.',
+      };
+
+      service.checkStallDetection('s1', stalledEval);
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
+
+      service.checkStallDetection('s1', stalledEval);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'discussion.stalled',
+        expect.objectContaining({ sessionId: 's1', stalledRounds: 2 }),
+      );
+    });
+
+    it('should auto-end after 3 consecutive stalled rounds', () => {
+      const stalledEval = {
+        convergenceScore: 0.3,
+        consensusReached: false,
+        areasOfAgreement: [],
+        areasOfDisagreement: [],
+        progressAssessment: 'stalled' as const,
+        reasoning: 'Going in circles.',
+      };
+
+      service.checkStallDetection('s2', stalledEval);
+      service.checkStallDetection('s2', stalledEval);
+      const result = service.checkStallDetection('s2', stalledEval);
+
+      expect(result.stalled).toBe(true);
+      expect(result.stalledRounds).toBe(3);
+    });
+
+    it('should reset stall count when progress resumes', () => {
+      const stalledEval = {
+        convergenceScore: 0.4,
+        consensusReached: false,
+        areasOfAgreement: [],
+        areasOfDisagreement: [],
+        progressAssessment: 'stalled' as const,
+        reasoning: 'Stuck.',
+      };
+      const convergingEval = {
+        convergenceScore: 0.6,
+        consensusReached: false,
+        areasOfAgreement: ['Point A'],
+        areasOfDisagreement: [],
+        progressAssessment: 'converging' as const,
+        reasoning: 'Making progress.',
+      };
+
+      service.checkStallDetection('s3', stalledEval);
+      service.checkStallDetection('s3', stalledEval);
+      service.checkStallDetection('s3', convergingEval);
+      const result = service.checkStallDetection('s3', stalledEval);
+
+      expect(result.stalledRounds).toBe(1);
+    });
+  });
 });

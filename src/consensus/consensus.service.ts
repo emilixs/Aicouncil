@@ -356,6 +356,128 @@ export class ConsensusService {
     return { stalled: false, stalledRounds: 0 };
   }
 
+  async createPoll(
+    sessionId: string,
+    proposal: string,
+    createdBy: 'user' | 'system',
+  ) {
+    const poll = await this.prisma.poll.create({
+      data: { sessionId, proposal, createdBy },
+    });
+
+    this.eventEmitter.emit(DISCUSSION_EVENTS.POLL_CREATED, {
+      sessionId,
+      pollId: poll.id,
+      proposal: poll.proposal,
+    });
+
+    return poll;
+  }
+
+  async extractVote(
+    pollId: string,
+    proposal: string,
+    expertId: string,
+    expertName: string,
+    sessionId: string,
+    expertResponse: string,
+  ) {
+    const { buildVoteExtractorPrompt } = await import('./prompts/vote-extractor.prompt');
+
+    const driver = this.getEvaluatorDriver();
+    const config = { model: this.getEvaluatorModel() } as LLMConfig;
+    const response = await driver.chat(
+      [
+        { role: 'system', content: buildVoteExtractorPrompt(proposal) },
+        { role: 'user', content: expertResponse },
+      ],
+      config,
+    );
+
+    let vote = 'agree_with_reservations';
+    let reasoning = expertResponse;
+
+    try {
+      const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (['agree', 'disagree', 'agree_with_reservations'].includes(parsed.vote)) {
+          vote = parsed.vote;
+        }
+        if (typeof parsed.reasoning === 'string') {
+          reasoning = parsed.reasoning;
+        }
+      }
+    } catch {
+      // Use defaults
+    }
+
+    const pollVote = await this.prisma.pollVote.create({
+      data: { pollId, expertId, vote, reasoning },
+    });
+
+    this.eventEmitter.emit(DISCUSSION_EVENTS.POLL_VOTE, {
+      sessionId,
+      pollId,
+      expertId,
+      expertName,
+      vote,
+      reasoning,
+    });
+
+    return pollVote;
+  }
+
+  async closePoll(pollId: string, sessionId: string) {
+    const poll = await this.prisma.poll.update({
+      where: { id: pollId },
+      data: { status: 'closed', closedAt: new Date() },
+      include: { votes: true },
+    });
+
+    const results = {
+      agree: poll.votes.filter((v: any) => v.vote === 'agree').length,
+      disagree: poll.votes.filter((v: any) => v.vote === 'disagree').length,
+      agreeWithReservations: poll.votes.filter((v: any) => v.vote === 'agree_with_reservations').length,
+    };
+
+    this.eventEmitter.emit(DISCUSSION_EVENTS.POLL_CLOSED, {
+      sessionId,
+      pollId,
+      results,
+    });
+
+    return poll;
+  }
+
+  async hasAutoPolledSession(sessionId: string): Promise<boolean> {
+    const existing = await this.prisma.poll.findFirst({
+      where: { sessionId, createdBy: 'system' },
+    });
+    return existing !== null;
+  }
+
+  async getOutcome(sessionId: string) {
+    return this.prisma.discussionOutcome.findUnique({
+      where: { sessionId },
+    });
+  }
+
+  async getEvaluations(sessionId: string) {
+    return this.prisma.consensusEvaluation.findMany({
+      where: { sessionId },
+      orderBy: { roundNumber: 'asc' },
+    });
+  }
+
+  async getPolls(sessionId: string) {
+    return this.prisma.poll.findMany({
+      where: { sessionId },
+      include: { votes: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   clearSessionState(sessionId: string): void {
     this.stalledRoundCounts.delete(sessionId);
   }
