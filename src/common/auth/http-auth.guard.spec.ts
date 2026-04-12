@@ -63,6 +63,7 @@ describe('HttpAuthGuard', () => {
     });
   });
 
+
   describe('public routes', () => {
     it('should return true and skip token check when route is marked @Public()', () => {
       mockReflector.getAllAndOverride.mockReturnValue(true);
