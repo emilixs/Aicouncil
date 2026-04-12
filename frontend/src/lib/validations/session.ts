@@ -12,7 +12,7 @@ export const sessionFormSchema = z.object({
     .coerce.number()
     .int("Max messages must be a whole number")
     .min(5, "Max messages must be at least 5")
-    .max(200, "Max messages must be at most 200")
+    .max(100, "Max messages must be at most 100")
     .default(30),
   type: z.enum(["DISCUSSION", "COMPARISON"]).default("DISCUSSION"),
 });
