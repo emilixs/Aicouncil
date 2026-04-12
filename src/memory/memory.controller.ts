@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { MemoryType } from '@prisma/client';
 import { MemoryService } from './memory.service';
-import { CreateMemoryDto, UpdateMemoryDto } from './dto';
+import { CreateMemoryDto, UpdateMemoryDto, MemoryResponseDto } from './dto';
 
 @Controller('experts/:expertId/memories')
 export class MemoryController {
@@ -24,11 +24,23 @@ export class MemoryController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.memoryService.findAllByExpert(expertId, {
-      type,
-      page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 20,
-    });
+    const parsedPage = page ? parseInt(page, 10) : 1;
+    const parsedLimit = limit ? parseInt(limit, 10) : 20;
+
+    const { data, total } = await this.memoryService.findAllByExpert(
+      expertId,
+      { type, page: parsedPage, limit: parsedLimit },
+    );
+
+    return {
+      data: data.map(MemoryResponseDto.fromPrisma),
+      meta: {
+        page: parsedPage,
+        limit: parsedLimit,
+        total,
+        totalPages: Math.ceil(total / parsedLimit),
+      },
+    };
   }
 
   @Get(':memoryId')
@@ -36,7 +48,8 @@ export class MemoryController {
     @Param('expertId') expertId: string,
     @Param('memoryId') memoryId: string,
   ) {
-    return this.memoryService.findOne(expertId, memoryId);
+    const memory = await this.memoryService.findOne(expertId, memoryId);
+    return MemoryResponseDto.fromPrisma(memory);
   }
 
   @Post()
@@ -44,7 +57,8 @@ export class MemoryController {
     @Param('expertId') expertId: string,
     @Body() dto: CreateMemoryDto,
   ) {
-    return this.memoryService.create(expertId, dto);
+    const memory = await this.memoryService.create(expertId, dto);
+    return MemoryResponseDto.fromPrisma(memory);
   }
 
   @Patch(':memoryId')
@@ -53,7 +67,8 @@ export class MemoryController {
     @Param('memoryId') memoryId: string,
     @Body() dto: UpdateMemoryDto,
   ) {
-    return this.memoryService.update(expertId, memoryId, dto);
+    const memory = await this.memoryService.update(expertId, memoryId, dto);
+    return MemoryResponseDto.fromPrisma(memory);
   }
 
   @Delete(':memoryId')

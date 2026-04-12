@@ -13,6 +13,21 @@ const mockMemoryService = {
   clearAllByExpert: jest.fn(),
 };
 
+function makeMockMemory(overrides: Record<string, any> = {}) {
+  return {
+    id: 'mem1',
+    expertId: 'exp1',
+    sessionId: null,
+    type: MemoryType.USER_NOTE,
+    content: 'test',
+    relevance: 1.0,
+    metadata: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
 describe('MemoryController', () => {
   let controller: MemoryController;
 
@@ -28,18 +43,25 @@ describe('MemoryController', () => {
 
   describe('findAll', () => {
     it('should call findAllByExpert with correct params', async () => {
-      mockMemoryService.findAllByExpert.mockResolvedValue([]);
+      mockMemoryService.findAllByExpert.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
       const result = await controller.findAll('exp1', undefined, '1', '20');
       expect(mockMemoryService.findAllByExpert).toHaveBeenCalledWith('exp1', {
         type: undefined,
         page: 1,
         limit: 20,
       });
-      expect(result).toEqual([]);
+      expect(result.data).toEqual([]);
+      expect(result.meta.total).toBe(0);
     });
 
     it('should pass type filter when provided', async () => {
-      mockMemoryService.findAllByExpert.mockResolvedValue([]);
+      mockMemoryService.findAllByExpert.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
       await controller.findAll('exp1', MemoryType.USER_NOTE, '1', '10');
       expect(mockMemoryService.findAllByExpert).toHaveBeenCalledWith('exp1', {
         type: MemoryType.USER_NOTE,
@@ -51,18 +73,19 @@ describe('MemoryController', () => {
 
   describe('findOne', () => {
     it('should call findOne with expertId and memoryId', async () => {
-      const mockMemory = { id: 'mem1', expertId: 'exp1', content: 'test' };
+      const mockMemory = makeMockMemory();
       mockMemoryService.findOne.mockResolvedValue(mockMemory);
       const result = await controller.findOne('exp1', 'mem1');
       expect(mockMemoryService.findOne).toHaveBeenCalledWith('exp1', 'mem1');
-      expect(result).toEqual(mockMemory);
+      expect(result.id).toBe('mem1');
+      expect(result.effectiveRelevance).toBeDefined();
     });
   });
 
   describe('create', () => {
     it('should call create with USER_NOTE type', async () => {
       const dto = { content: 'A note' };
-      mockMemoryService.create.mockResolvedValue({ id: 'mem1', ...dto });
+      mockMemoryService.create.mockResolvedValue(makeMockMemory(dto));
       await controller.create('exp1', dto as any);
       expect(mockMemoryService.create).toHaveBeenCalledWith('exp1', dto);
     });
@@ -71,10 +94,7 @@ describe('MemoryController', () => {
   describe('update', () => {
     it('should call update with correct params', async () => {
       const dto = { content: 'Updated note' };
-      mockMemoryService.update.mockResolvedValue({
-        id: 'mem1',
-        content: 'Updated note',
-      });
+      mockMemoryService.update.mockResolvedValue(makeMockMemory(dto));
       await controller.update('exp1', 'mem1', dto as any);
       expect(mockMemoryService.update).toHaveBeenCalledWith(
         'exp1',

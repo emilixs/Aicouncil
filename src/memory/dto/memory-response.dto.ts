@@ -1,5 +1,6 @@
 import { Expose } from 'class-transformer';
-import { MemoryType } from '@prisma/client';
+import { MemoryType, ExpertMemory } from '@prisma/client';
+import { calculateEffectiveRelevance } from '../utils/relevance';
 
 export class MemoryResponseDto {
   @Expose()
@@ -21,6 +22,9 @@ export class MemoryResponseDto {
   relevance: number;
 
   @Expose()
+  effectiveRelevance: number;
+
+  @Expose()
   metadata: any;
 
   @Expose()
@@ -31,5 +35,23 @@ export class MemoryResponseDto {
 
   constructor(partial: Partial<MemoryResponseDto>) {
     Object.assign(this, partial);
+  }
+
+  static fromPrisma(memory: ExpertMemory): MemoryResponseDto {
+    return new MemoryResponseDto({
+      id: memory.id,
+      expertId: memory.expertId,
+      sessionId: memory.sessionId,
+      type: memory.type,
+      content: memory.content,
+      relevance: memory.relevance,
+      effectiveRelevance:
+        memory.type === MemoryType.USER_NOTE
+          ? memory.relevance
+          : calculateEffectiveRelevance(memory.relevance, memory.createdAt),
+      metadata: memory.metadata,
+      createdAt: memory.createdAt,
+      updatedAt: memory.updatedAt,
+    });
   }
 }

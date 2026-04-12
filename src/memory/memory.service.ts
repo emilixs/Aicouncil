@@ -32,7 +32,7 @@ export class MemoryService {
   async findAllByExpert(
     expertId: string,
     options?: { type?: MemoryType; page?: number; limit?: number },
-  ) {
+  ): Promise<{ data: any[]; total: number }> {
     const expert = await this.prisma.expert.findUnique({
       where: { id: expertId },
     });
@@ -44,15 +44,22 @@ export class MemoryService {
     const limit = options?.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    return this.prisma.expertMemory.findMany({
-      where: {
-        expertId,
-        ...(options?.type ? { type: options.type } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    });
+    const where = {
+      expertId,
+      ...(options?.type ? { type: options.type } : {}),
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.expertMemory.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.expertMemory.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   async findOne(expertId: string, memoryId: string) {
@@ -67,7 +74,10 @@ export class MemoryService {
     return memory;
   }
 
-  async create(expertId: string, dto: { content: string }) {
+  async create(
+    expertId: string,
+    dto: { content: string; relevance?: number; metadata?: { topics?: string[] } },
+  ) {
     const expert = await this.prisma.expert.findUnique({
       where: { id: expertId },
     });
@@ -80,7 +90,8 @@ export class MemoryService {
         expertId,
         type: MemoryType.USER_NOTE,
         content: dto.content,
-        relevance: 1.0,
+        relevance: dto.relevance ?? 1.0,
+        ...(dto.metadata ? { metadata: dto.metadata } : {}),
       },
     });
 
@@ -143,7 +154,7 @@ export class MemoryService {
     maxInject: number,
   ): Promise<{ memories: ScoredMemory[]; ids: string[] }> {
     const allMemories = await this.prisma.expertMemory.findMany({
-      where: { expertId },
+      where: { expertId, relevance: { gt: 0.1 } },
     });
 
     if (allMemories.length === 0) {
@@ -177,9 +188,18 @@ export class MemoryService {
       .sort((a, b) => b.effectiveRelevance - a.effectiveRelevance)
       .slice(0, maxInject);
 
+    const TOKEN_BUDGET = 3000;
+    const MAX_FALLBACK = 3;
+    let totalTokens = scored.reduce(
+      (sum, m) => sum + Math.ceil(m.content.length / 4),
+      0,
+    );
+    const result =
+      totalTokens > TOKEN_BUDGET ? scored.slice(0, MAX_FALLBACK) : scored;
+
     return {
-      memories: scored,
-      ids: scored.map((m) => m.id),
+      memories: result,
+      ids: result.map((m) => m.id),
     };
   }
 
@@ -293,12 +313,20 @@ Respond ONLY with valid JSON.`;
 
     if (count <= maxEntries) return;
 
-    const toDelete = await this.prisma.expertMemory.findMany({
-      where: { expertId },
-      orderBy: { createdAt: 'asc' },
-      take: count - maxEntries,
-      select: { id: true },
+    const prunable = await this.prisma.expertMemory.findMany({
+      where: { expertId, type: { not: MemoryType.USER_NOTE } },
+      select: { id: true, relevance: true, createdAt: true },
     });
+
+    const scored = prunable
+      .map((mem) => ({
+        id: mem.id,
+        score: calculateEffectiveRelevance(mem.relevance, mem.createdAt),
+      }))
+      .sort((a, b) => a.score - b.score);
+
+    const deleteCount = count - maxEntries;
+    const toDelete = scored.slice(0, deleteCount);
 
     for (const mem of toDelete) {
       await this.prisma.expertMemory.delete({ where: { id: mem.id } });

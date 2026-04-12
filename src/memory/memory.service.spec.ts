@@ -68,10 +68,12 @@ describe('MemoryService', () => {
 
       mockPrismaService.expert.findUnique.mockResolvedValue({ id: 'exp1' });
       mockPrismaService.expertMemory.findMany.mockResolvedValue(mockMemories);
+      mockPrismaService.expertMemory.count.mockResolvedValue(1);
 
       const result = await service.findAllByExpert('exp1');
-      expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('mem1');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe('mem1');
+      expect(result.total).toBe(1);
     });
 
     it('should throw NotFoundException for non-existent expert', async () => {

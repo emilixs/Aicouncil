@@ -333,18 +333,19 @@ export class CouncilService {
       // Conclude the session
       await this.concludeSession(sessionId, consensusReached);
 
-      // Generate memory for each memory-enabled expert
-      for (const expert of experts) {
-        if ((expert as any).memoryEnabled) {
-          try {
-            await this.memoryService.generateSessionMemory(expert.id, sessionId);
-          } catch (error) {
-            this.logger.error(
-              `Failed to generate memory for expert ${expert.name}: ${error.message}`,
-            );
-          }
-        }
-      }
+      // Generate memory for each memory-enabled expert (non-blocking)
+      const memoryPromises = experts
+        .filter((expert) => (expert as any).memoryEnabled)
+        .map((expert) =>
+          this.memoryService
+            .generateSessionMemory(expert.id, sessionId)
+            .catch((error) =>
+              this.logger.error(
+                `Failed to generate memory for expert ${expert.name}: ${error.message}`,
+              ),
+            ),
+        );
+      Promise.allSettled(memoryPromises);
 
       // Get final message count
       const finalMessageCount = await this.messageService.countBySession(sessionId);
