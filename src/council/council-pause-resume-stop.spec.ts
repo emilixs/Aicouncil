@@ -44,6 +44,8 @@ describe('CouncilService - Pause/Resume/Stop', () => {
     ],
   };
 
+  const normalizedExperts = mockSession.experts.map((e) => e.expert);
+
   beforeEach(async () => {
     const mockDriver = {
       chat: jest.fn(),
@@ -83,29 +85,30 @@ describe('CouncilService - Pause/Resume/Stop', () => {
     councilService = module.get<CouncilService>(CouncilService);
   });
 
+  function setupAndRunLoop() {
+    (councilService as any).interventionQueues.set(sessionId, []);
+    (councilService as any).sessionControlFlags.set(sessionId, 'running');
+    return councilService.runDiscussionLoop(sessionId, mockSession as any, normalizedExperts as any);
+  }
+
   describe('pauseDiscussion', () => {
     it('should set session status to PAUSED and emit SESSION_PAUSED event', async () => {
-      // Start a discussion to set the control flag to 'running'
       sessionService.findOne.mockResolvedValue(mockSession as any);
       sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
 
-      // First call returns a response, then pause before second call
       let pauseTriggered = false;
       (mockDriver.chat as jest.Mock).mockImplementation(async () => {
         if (!pauseTriggered) {
           pauseTriggered = true;
-          // Pause after the first expert turn
           setTimeout(() => {
             councilService.pauseDiscussion(sessionId).then(() => {
-              // Then stop to end the test
               councilService.stopDiscussion(sessionId);
             });
           }, 50);
           return { content: 'Expert response', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
         }
-        // This should not be reached because we pause+stop
         return { content: 'Should not reach', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
       });
 
@@ -119,16 +122,14 @@ describe('CouncilService - Pause/Resume/Stop', () => {
         timestamp: new Date(),
       } as any);
 
-      await councilService.startDiscussion(sessionId);
+      await setupAndRunLoop();
 
-      // Verify SESSION_PAUSED was emitted
       const pausedEmit = eventEmitter.emit.mock.calls.find(
         (call) => call[0] === DISCUSSION_EVENTS.SESSION_PAUSED,
       );
       expect(pausedEmit).toBeDefined();
       expect(pausedEmit![1]).toEqual({ sessionId });
 
-      // Verify session was updated to PAUSED
       const pauseUpdate = sessionService.update.mock.calls.find(
         (call) => call[1]?.status === SessionStatus.PAUSED,
       );
@@ -136,10 +137,8 @@ describe('CouncilService - Pause/Resume/Stop', () => {
     });
 
     it('should not pause if session is not running', async () => {
-      // No discussion started, so no control flag exists
       await councilService.pauseDiscussion(sessionId);
 
-      // Should not emit or update
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
         DISCUSSION_EVENTS.SESSION_PAUSED,
         expect.anything(),
@@ -167,12 +166,10 @@ describe('CouncilService - Pause/Resume/Stop', () => {
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
 
-      // Make the chat call slow so we can stop during it
       let stopTriggered = false;
       (mockDriver.chat as jest.Mock).mockImplementation(async () => {
         if (!stopTriggered) {
           stopTriggered = true;
-          // Stop after the first expert turn completes
           setTimeout(() => councilService.stopDiscussion(sessionId), 50);
           return { content: 'Expert response', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
         }
@@ -189,16 +186,14 @@ describe('CouncilService - Pause/Resume/Stop', () => {
         timestamp: new Date(),
       } as any);
 
-      await councilService.startDiscussion(sessionId);
+      await setupAndRunLoop();
 
-      // Verify DISCUSSION_STOPPED was emitted
       const stoppedEmit = eventEmitter.emit.mock.calls.find(
         (call) => call[0] === DISCUSSION_EVENTS.DISCUSSION_STOPPED,
       );
       expect(stoppedEmit).toBeDefined();
       expect(stoppedEmit![1]).toEqual({ sessionId });
 
-      // Session should end as CANCELLED
       const cancelUpdate = sessionService.update.mock.calls.find(
         (call) => call[1]?.status === SessionStatus.CANCELLED,
       );
@@ -260,15 +255,12 @@ describe('CouncilService - Pause/Resume/Stop', () => {
       (mockDriver.chat as jest.Mock).mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
-          // After first turn, trigger pause then resume
           setTimeout(async () => {
             await councilService.pauseDiscussion(sessionId);
-            // Resume after a short delay
             setTimeout(() => councilService.resumeDiscussion(sessionId), 50);
           }, 50);
           return { content: 'Turn 1', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
         }
-        // After resume, stop to end the test
         setTimeout(() => councilService.stopDiscussion(sessionId), 50);
         return { content: 'Turn 2 after resume', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
       });
@@ -288,12 +280,10 @@ describe('CouncilService - Pause/Resume/Stop', () => {
       });
       messageService.countBySession.mockImplementation(async () => msgCount);
 
-      await councilService.startDiscussion(sessionId);
+      await setupAndRunLoop();
 
-      // Should have created at least 2 messages (one before pause, one after resume)
       expect(messageService.create).toHaveBeenCalledTimes(2);
 
-      // Both SESSION_PAUSED and SESSION_RESUMED should have been emitted
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         DISCUSSION_EVENTS.SESSION_PAUSED,
         expect.objectContaining({ sessionId }),
@@ -311,7 +301,6 @@ describe('CouncilService - Pause/Resume/Stop', () => {
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
 
       (mockDriver.chat as jest.Mock).mockImplementation(async () => {
-        // After first turn, pause then stop
         setTimeout(async () => {
           await councilService.pauseDiscussion(sessionId);
           setTimeout(() => councilService.stopDiscussion(sessionId), 50);
@@ -329,12 +318,10 @@ describe('CouncilService - Pause/Resume/Stop', () => {
         timestamp: new Date(),
       } as any);
 
-      await councilService.startDiscussion(sessionId);
+      await setupAndRunLoop();
 
-      // Only one message should have been created (before the pause)
       expect(messageService.create).toHaveBeenCalledTimes(1);
 
-      // Session should end as CANCELLED
       const cancelUpdate = sessionService.update.mock.calls.find(
         (call) => call[1]?.status === SessionStatus.CANCELLED,
       );

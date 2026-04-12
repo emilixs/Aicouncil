@@ -200,14 +200,11 @@ export class CouncilService {
   }
 
   /**
-   * Start a multi-agent discussion for a session
-   *
-   * @param sessionId - The session ID to start
-   * @returns The completed session with final status
-   * @throws BadRequestException if session is not in PENDING status
+   * Start a multi-agent discussion for a session.
+   * Validates the session, transitions to ACTIVE, and fires the discussion loop
+   * in the background (fire-and-forget). Returns immediately with the ACTIVE session.
    */
   async startDiscussion(sessionId: string): Promise<SessionResponseDto> {
-    // Validate session exists and is in PENDING status
     const session = await this.sessionService.findOne(sessionId);
 
     if (session.status !== SessionStatus.PENDING) {
@@ -216,63 +213,66 @@ export class CouncilService {
       );
     }
 
-    try {
-      // Comment 5: Use experts directly from session (remove redundant re-fetching)
-      // Normalize experts: handle both ExpertResponseDto[] and raw SessionExpert[] with nested expert
-      const experts = session.experts.map((e: any) =>
-        e.expert ? e.expert : e,
-      );
+    const experts = session.experts.map((e: any) => (e.expert ? e.expert : e));
 
-      // Comment 1: Validate that session has experts
-      if (experts.length === 0) {
+    if (experts.length === 0) {
+      throw new BadRequestException(
+        'Cannot start discussion for session with no experts. Session must have at least one expert.',
+      );
+    }
+
+    this.logger.log(`Validating ${experts.length} expert configurations...`);
+    for (const expert of experts) {
+      const expertConfig = plainToInstance(LLMConfig, expert.config);
+      const validationErrors = await validate(expertConfig);
+
+      if (validationErrors.length > 0 || !expertConfig.model) {
         throw new BadRequestException(
-          'Cannot start discussion for session with no experts. Session must have at least one expert.',
+          `Expert "${expert.name}" (${expert.id}) has invalid config. Missing or invalid required field: model`,
         );
       }
 
-      // Comment 1: Pre-validate expert configs and API keys before switching session to ACTIVE
-      this.logger.log(`Validating ${experts.length} expert configurations...`);
-      for (const expert of experts) {
-        // Transform and validate LLMConfig
-        const expertConfig = plainToInstance(LLMConfig, expert.config);
-        const validationErrors = await validate(expertConfig);
-
-        if (validationErrors.length > 0 || !expertConfig.model) {
-          throw new BadRequestException(
-            `Expert "${expert.name}" (${expert.id}) has invalid config. Missing or invalid required field: model`,
-          );
-        }
-
-        // Verify API key is present by attempting to create driver
-        try {
-          this.driverFactory.createDriver(expert.driverType);
-        } catch (error) {
-          throw new BadRequestException(
-            `Expert "${expert.name}" (${expert.id}) cannot be initialized: ${error.message}`,
-          );
-        }
+      try {
+        this.driverFactory.createDriver(expert.driverType);
+      } catch (error) {
+        throw new BadRequestException(
+          `Expert "${expert.name}" (${expert.id}) cannot be initialized: ${error.message}`,
+        );
       }
-      this.logger.log(`All expert configurations validated successfully`);
+    }
+    this.logger.log(`All expert configurations validated successfully`);
 
-      // Transition session to ACTIVE only after all validations pass
-      await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
-      this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
+    await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
+    this.logger.log(`Session ${sessionId} transitioned to ACTIVE`);
 
-      this.logger.log(`Starting discussion with ${experts.length} experts`);
+    this.interventionQueues.set(sessionId, []);
+    this.sessionControlFlags.set(sessionId, 'running');
 
-      // Initialize intervention queue and control flag for this session
-      this.interventionQueues.set(sessionId, []);
-      this.sessionControlFlags.set(sessionId, 'running');
+    this.runDiscussionLoop(sessionId, session, experts).catch((err) =>
+      this.logger.error(`Discussion loop failed for session ${sessionId}: ${err.message}`, err.stack),
+    );
 
-      // Initialize discussion loop variables
+    return this.sessionService.findOne(sessionId);
+  }
+
+  /**
+   * The discussion loop. Runs in the background after startDiscussion returns.
+   * Exposed for testing — not part of the public API.
+   */
+  async runDiscussionLoop(
+    sessionId: string,
+    session: SessionResponseDto,
+    experts: ExpertResponseDto[],
+  ): Promise<void> {
+    try {
+      this.logger.log(`Starting discussion loop with ${experts.length} experts`);
+
       let currentExpertIndex = 0;
       let consensusReached = false;
       let currentRound = 1;
       let stopped = false;
 
-      // Main discussion loop
       while (!consensusReached && !stopped) {
-        // Check for pause/stop before each turn
         const controlFlag = this.sessionControlFlags.get(sessionId);
         if (controlFlag === 'paused') {
           const resumeResult = await this.waitWhilePaused(sessionId);
@@ -285,10 +285,8 @@ export class CouncilService {
           break;
         }
 
-        // Process any queued interventions before expert turn
         await this.processInterventions(sessionId, currentRound);
 
-        // Check message count
         const messageCount = await this.messageService.countBySession(sessionId);
 
         if (messageCount >= session.maxMessages) {
@@ -298,11 +296,9 @@ export class CouncilService {
           break;
         }
 
-        // Select next expert using round-robin
         const currentExpert = experts[currentExpertIndex % experts.length];
         this.logger.log(`Expert turn: ${currentExpert.name} (${currentExpert.specialty})`);
 
-        // Emit expert turn start event
         this.eventEmitter.emit(DISCUSSION_EVENTS.EXPERT_TURN_START, {
           sessionId,
           expertId: currentExpert.id,
@@ -310,10 +306,8 @@ export class CouncilService {
           turnNumber: currentExpertIndex + 1,
         } as ExpertTurnStartEvent);
 
-        // Retrieve recent messages for context
         const recentMessages = await this.messageService.findLatestBySession(sessionId, 10);
 
-        // Build context for the current expert
         const contextMessages = this.buildExpertContext(
           session,
           currentExpert,
@@ -321,15 +315,10 @@ export class CouncilService {
           recentMessages,
         );
 
-        // Comment 2: Handle per-expert LLM errors gracefully
         try {
-          // Create LLM driver for the expert
           const driver = this.driverFactory.createDriver(currentExpert.driverType);
-
-          // Transform config (validation already done during pre-validation)
           const expertConfig = plainToInstance(LLMConfig, currentExpert.config);
 
-          // Get response from LLM with timing
           const startTime = Date.now();
           const response = await driver.chat(contextMessages, expertConfig);
           const responseTimeMs = Date.now() - startTime;
@@ -337,7 +326,6 @@ export class CouncilService {
             `Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`,
           );
 
-          // Comment 5: Guard against empty or whitespace-only LLM responses
           const trimmedContent = response.content.trim();
           if (!trimmedContent) {
             this.logger.warn(
@@ -347,7 +335,6 @@ export class CouncilService {
             continue;
           }
 
-          // Create message in database with analytics fields
           const message = await this.messageService.create({
             sessionId,
             expertId: currentExpert.id,
@@ -362,19 +349,16 @@ export class CouncilService {
             finishReason: response.finishReason ?? undefined,
           });
 
-          // Emit message created event
           this.eventEmitter.emit(DISCUSSION_EVENTS.MESSAGE_CREATED, {
             sessionId,
             message,
           } as DiscussionMessageEvent);
 
-          // Check for consensus
           consensusReached = this.detectConsensus(trimmedContent);
 
           if (consensusReached) {
             this.logger.log(`Consensus detected in session ${sessionId}`);
 
-            // Emit consensus reached event
             this.eventEmitter.emit(DISCUSSION_EVENTS.CONSENSUS_REACHED, {
               sessionId,
               consensusReached: true,
@@ -384,14 +368,12 @@ export class CouncilService {
             break;
           }
         } catch (error) {
-          // Emit error event
           this.eventEmitter.emit(DISCUSSION_EVENTS.ERROR, {
             sessionId,
             error: error.message,
             expertId: currentExpert.id,
           } as DiscussionErrorEvent);
 
-          // Comment 2: Handle transient errors gracefully without cancelling session
           const isTransientError =
             error.name === 'LLMRateLimitException' ||
             error.name === 'LLMTimeoutException' ||
@@ -401,9 +383,7 @@ export class CouncilService {
             this.logger.warn(
               `Transient error for expert ${currentExpert.name}: ${error.message}. Continuing to next expert.`,
             );
-            // Continue to next expert without throwing
           } else {
-            // Fatal errors (authentication, invalid config, etc.) should still throw
             this.logger.error(
               `Fatal error for expert ${currentExpert.name}: ${error.message}`,
               error.stack,
@@ -412,29 +392,23 @@ export class CouncilService {
           }
         }
 
-        // Move to next expert
         currentExpertIndex++;
 
-        // Increment round number after all experts have spoken
         if (currentExpertIndex % experts.length === 0) {
           currentRound++;
         }
 
-        // Comment 4: Add small inter-turn delay to reduce provider rate-limit risk
-        await this.sleep(200); // 200ms delay between turns
+        await this.sleep(200);
       }
 
-      // Conclude the session
       if (stopped) {
         await this.sessionService.update(sessionId, { status: SessionStatus.CANCELLED });
       } else {
         await this.concludeSession(sessionId, consensusReached);
       }
 
-      // Get final message count
       const finalMessageCount = await this.messageService.countBySession(sessionId);
 
-      // Emit session ended event
       const endReason = consensusReached
         ? 'consensus'
         : stopped
@@ -450,33 +424,26 @@ export class CouncilService {
         messageCount: finalMessageCount,
       } as DiscussionEndedEvent);
 
-      // Cleanup intervention queue, control flag, and pause resolver
       this.interventionQueues.delete(sessionId);
       this.sessionControlFlags.delete(sessionId);
       this.pauseResolvers.delete(sessionId);
-
-      // Return final session state
-      return await this.sessionService.findOne(sessionId);
     } catch (error) {
       this.logger.error(
         `Error during discussion in session ${sessionId}: ${error.message}`,
         error.stack,
       );
 
-      // Emit error event
       this.eventEmitter.emit(DISCUSSION_EVENTS.ERROR, {
         sessionId,
         error: error.message,
       } as DiscussionErrorEvent);
 
-      // Attempt to set session to CANCELLED on error
       try {
         await this.sessionService.update(sessionId, { status: SessionStatus.CANCELLED });
       } catch (updateError) {
         this.logger.error(`Failed to cancel session ${sessionId}: ${updateError.message}`);
       }
 
-      // Cleanup intervention queue, control flag, and pause resolver
       this.interventionQueues.delete(sessionId);
       this.sessionControlFlags.delete(sessionId);
       this.pauseResolvers.delete(sessionId);
