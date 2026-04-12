@@ -14,6 +14,7 @@ import { CouncilModule } from './council/council.module';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 import { HttpAuthGuard } from './common/auth/http-auth.guard';
 import { validate } from './config/env.validation';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { validate } from './config/env.validation';
     SessionModule,
     MessageModule,
     CouncilModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

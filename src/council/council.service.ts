@@ -17,6 +17,8 @@ import {
   DiscussionEndedEvent,
   DiscussionErrorEvent,
   ExpertTurnStartEvent,
+  DiscussionPausedEvent,
+  DiscussionResumedEvent,
 } from './events/discussion.events';
 
 /**
@@ -29,6 +31,8 @@ import {
 export class CouncilService {
   private readonly logger = new Logger(CouncilService.name);
   private interventionQueues: Map<string, Array<{ content: string; userId?: string }>> = new Map();
+  private sessionControlFlags: Map<string, 'running' | 'paused' | 'stopped'> = new Map();
+  private pauseResolvers: Map<string, (value: 'running' | 'stopped') => void> = new Map();
 
   constructor(
     private readonly sessionService: SessionService,
@@ -46,18 +50,92 @@ export class CouncilService {
   }
 
   /**
+   * Pause a running discussion. The loop will stop after the current expert turn completes.
+   */
+  async pauseDiscussion(sessionId: string): Promise<void> {
+    const flag = this.sessionControlFlags.get(sessionId);
+    if (flag !== 'running') {
+      this.logger.warn(`Cannot pause session ${sessionId}: not running (flag=${flag})`);
+      return;
+    }
+    this.sessionControlFlags.set(sessionId, 'paused');
+    await this.sessionService.update(sessionId, { status: SessionStatus.PAUSED });
+    this.logger.log(`Session ${sessionId} paused`);
+    this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_PAUSED, {
+      sessionId,
+    } as DiscussionPausedEvent);
+  }
+
+  /**
+   * Resume a paused discussion.
+   */
+  async resumeDiscussion(sessionId: string): Promise<void> {
+    const flag = this.sessionControlFlags.get(sessionId);
+    if (flag !== 'paused') {
+      this.logger.warn(`Cannot resume session ${sessionId}: not paused (flag=${flag})`);
+      return;
+    }
+    this.sessionControlFlags.set(sessionId, 'running');
+    const resolver = this.pauseResolvers.get(sessionId);
+    if (resolver) {
+      this.pauseResolvers.delete(sessionId);
+      resolver('running');
+    }
+    await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
+    this.logger.log(`Session ${sessionId} resumed`);
+    this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_RESUMED, {
+      sessionId,
+    } as DiscussionResumedEvent);
+  }
+
+  /**
+   * Stop a running or paused discussion. The loop will exit after the current turn.
+   */
+  async stopDiscussion(sessionId: string): Promise<void> {
+    const flag = this.sessionControlFlags.get(sessionId);
+    if (!flag || flag === 'stopped') {
+      this.logger.warn(`Cannot stop session ${sessionId}: not active (flag=${flag})`);
+      return;
+    }
+    this.sessionControlFlags.set(sessionId, 'stopped');
+    const resolver = this.pauseResolvers.get(sessionId);
+    if (resolver) {
+      this.pauseResolvers.delete(sessionId);
+      resolver('stopped');
+    }
+    this.logger.log(`Session ${sessionId} stop requested`);
+    this.eventEmitter.emit(DISCUSSION_EVENTS.DISCUSSION_STOPPED, {
+      sessionId,
+    });
+  }
+
+  /**
+   * Wait while the discussion is paused. Returns 'running' on resume or 'stopped' on stop.
+   * Uses a Promise resolved by resumeDiscussion/stopDiscussion instead of polling.
+   */
+  private waitWhilePaused(sessionId: string): Promise<'running' | 'stopped'> {
+    const flag = this.sessionControlFlags.get(sessionId);
+    if (flag !== 'paused') {
+      return Promise.resolve(flag === 'stopped' ? 'stopped' : 'running');
+    }
+    return new Promise<'running' | 'stopped'>((resolve) => {
+      this.pauseResolvers.set(sessionId, resolve);
+    });
+  }
+
+  /**
    * Queue a user intervention to be processed before the next expert turn
    * @param sessionId - The session ID
    * @param content - The intervention message content
    * @param userId - Optional user ID
-   * @returns true if intervention was queued, false if session is not ACTIVE or on failure
+   * @returns true if intervention was queued, false if session is not ACTIVE/PAUSED or on failure
    */
   async queueIntervention(sessionId: string, content: string, userId?: string): Promise<boolean> {
     try {
       // Verify session status before queuing
       const session = await this.sessionService.findOne(sessionId);
 
-      if (session.status !== SessionStatus.ACTIVE) {
+      if (session.status !== SessionStatus.ACTIVE && session.status !== SessionStatus.PAUSED) {
         this.logger.warn(
           `Cannot queue intervention for session ${sessionId}: session status is ${session.status}`,
         );
@@ -83,7 +161,7 @@ export class CouncilService {
    * Process queued interventions by creating USER messages
    * @param sessionId - The session ID
    */
-  private async processInterventions(sessionId: string): Promise<void> {
+  private async processInterventions(sessionId: string, roundNumber?: number): Promise<void> {
     const queue = this.interventionQueues.get(sessionId);
     if (!queue || queue.length === 0) {
       return;
@@ -98,6 +176,7 @@ export class CouncilService {
           content: intervention.content,
           role: MessageRole.USER,
           isIntervention: true,
+          roundNumber,
         });
 
         // Emit message created event
@@ -139,7 +218,10 @@ export class CouncilService {
 
     try {
       // Comment 5: Use experts directly from session (remove redundant re-fetching)
-      const experts = session.experts;
+      // Normalize experts: handle both ExpertResponseDto[] and raw SessionExpert[] with nested expert
+      const experts = session.experts.map((e: any) =>
+        e.expert ? e.expert : e,
+      );
 
       // Comment 1: Validate that session has experts
       if (experts.length === 0) {
@@ -178,17 +260,33 @@ export class CouncilService {
 
       this.logger.log(`Starting discussion with ${experts.length} experts`);
 
-      // Initialize intervention queue for this session
+      // Initialize intervention queue and control flag for this session
       this.interventionQueues.set(sessionId, []);
+      this.sessionControlFlags.set(sessionId, 'running');
 
       // Initialize discussion loop variables
       let currentExpertIndex = 0;
       let consensusReached = false;
+      let currentRound = 1;
+      let stopped = false;
 
       // Main discussion loop
-      while (!consensusReached) {
+      while (!consensusReached && !stopped) {
+        // Check for pause/stop before each turn
+        const controlFlag = this.sessionControlFlags.get(sessionId);
+        if (controlFlag === 'paused') {
+          const resumeResult = await this.waitWhilePaused(sessionId);
+          if (resumeResult === 'stopped') {
+            stopped = true;
+            break;
+          }
+        } else if (controlFlag === 'stopped') {
+          stopped = true;
+          break;
+        }
+
         // Process any queued interventions before expert turn
-        await this.processInterventions(sessionId);
+        await this.processInterventions(sessionId, currentRound);
 
         // Check message count
         const messageCount = await this.messageService.countBySession(sessionId);
@@ -231,8 +329,10 @@ export class CouncilService {
           // Transform config (validation already done during pre-validation)
           const expertConfig = plainToInstance(LLMConfig, currentExpert.config);
 
-          // Get response from LLM
+          // Get response from LLM with timing
+          const startTime = Date.now();
           const response = await driver.chat(contextMessages, expertConfig);
+          const responseTimeMs = Date.now() - startTime;
           this.logger.log(
             `Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`,
           );
@@ -247,12 +347,19 @@ export class CouncilService {
             continue;
           }
 
-          // Create message in database
+          // Create message in database with analytics fields
           const message = await this.messageService.create({
             sessionId,
             expertId: currentExpert.id,
             content: trimmedContent,
             role: MessageRole.ASSISTANT,
+            roundNumber: currentRound,
+            promptTokens: response.usage?.promptTokens ?? undefined,
+            completionTokens: response.usage?.completionTokens ?? undefined,
+            totalTokens: response.usage?.totalTokens ?? undefined,
+            model: response.model ?? undefined,
+            responseTimeMs,
+            finishReason: response.finishReason ?? undefined,
           });
 
           // Emit message created event
@@ -308,12 +415,21 @@ export class CouncilService {
         // Move to next expert
         currentExpertIndex++;
 
+        // Increment round number after all experts have spoken
+        if (currentExpertIndex % experts.length === 0) {
+          currentRound++;
+        }
+
         // Comment 4: Add small inter-turn delay to reduce provider rate-limit risk
         await this.sleep(200); // 200ms delay between turns
       }
 
       // Conclude the session
-      await this.concludeSession(sessionId, consensusReached);
+      if (stopped) {
+        await this.sessionService.update(sessionId, { status: SessionStatus.CANCELLED });
+      } else {
+        await this.concludeSession(sessionId, consensusReached);
+      }
 
       // Get final message count
       const finalMessageCount = await this.messageService.countBySession(sessionId);
@@ -321,9 +437,11 @@ export class CouncilService {
       // Emit session ended event
       const endReason = consensusReached
         ? 'consensus'
-        : finalMessageCount >= session.maxMessages
-          ? 'max_messages'
-          : 'cancelled';
+        : stopped
+          ? 'cancelled'
+          : finalMessageCount >= session.maxMessages
+            ? 'max_messages'
+            : 'cancelled';
 
       this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_ENDED, {
         sessionId,
@@ -332,8 +450,10 @@ export class CouncilService {
         messageCount: finalMessageCount,
       } as DiscussionEndedEvent);
 
-      // Cleanup intervention queue
+      // Cleanup intervention queue, control flag, and pause resolver
       this.interventionQueues.delete(sessionId);
+      this.sessionControlFlags.delete(sessionId);
+      this.pauseResolvers.delete(sessionId);
 
       // Return final session state
       return await this.sessionService.findOne(sessionId);
@@ -356,8 +476,10 @@ export class CouncilService {
         this.logger.error(`Failed to cancel session ${sessionId}: ${updateError.message}`);
       }
 
-      // Cleanup intervention queue
+      // Cleanup intervention queue, control flag, and pause resolver
       this.interventionQueues.delete(sessionId);
+      this.sessionControlFlags.delete(sessionId);
+      this.pauseResolvers.delete(sessionId);
 
       throw error;
     }

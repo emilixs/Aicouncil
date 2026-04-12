@@ -32,7 +32,7 @@ export class SessionService {
    * @throws BadRequestException if there are duplicate expert IDs
    */
   async create(createSessionDto: CreateSessionDto): Promise<SessionResponseDto> {
-    const { problemStatement, expertIds, maxMessages } = createSessionDto;
+    const { problemStatement, expertIds, maxMessages, type } = createSessionDto;
 
     // Validate that all expert IDs exist using a single batch query
     const existingExperts = await this.prisma.expert.findMany({
@@ -63,6 +63,7 @@ export class SessionService {
             problemStatement,
             maxMessages: maxMessages ?? undefined,
             status: SessionStatus.PENDING,
+            type: type ?? undefined,
           },
         });
 
@@ -223,7 +224,8 @@ export class SessionService {
    * Validate whether a status transition is allowed.
    * Implements the session state machine:
    * - PENDING → ACTIVE or CANCELLED
-   * - ACTIVE → COMPLETED or CANCELLED
+   * - ACTIVE → PAUSED, COMPLETED, or CANCELLED
+   * - PAUSED → ACTIVE or CANCELLED
    * - COMPLETED → no transitions (terminal state)
    * - CANCELLED → no transitions (terminal state)
    *
@@ -244,7 +246,13 @@ export class SessionService {
       case SessionStatus.PENDING:
         return newStatus === SessionStatus.ACTIVE || newStatus === SessionStatus.CANCELLED;
       case SessionStatus.ACTIVE:
-        return newStatus === SessionStatus.COMPLETED || newStatus === SessionStatus.CANCELLED;
+        return (
+          newStatus === SessionStatus.PAUSED ||
+          newStatus === SessionStatus.COMPLETED ||
+          newStatus === SessionStatus.CANCELLED
+        );
+      case SessionStatus.PAUSED:
+        return newStatus === SessionStatus.ACTIVE || newStatus === SessionStatus.CANCELLED;
       case SessionStatus.COMPLETED:
       case SessionStatus.CANCELLED:
         // Terminal states - no transitions allowed
@@ -266,7 +274,9 @@ export class SessionService {
       case SessionStatus.PENDING:
         return [SessionStatus.ACTIVE, SessionStatus.CANCELLED];
       case SessionStatus.ACTIVE:
-        return [SessionStatus.COMPLETED, SessionStatus.CANCELLED];
+        return [SessionStatus.PAUSED, SessionStatus.COMPLETED, SessionStatus.CANCELLED];
+      case SessionStatus.PAUSED:
+        return [SessionStatus.ACTIVE, SessionStatus.CANCELLED];
       case SessionStatus.COMPLETED:
       case SessionStatus.CANCELLED:
         return [];

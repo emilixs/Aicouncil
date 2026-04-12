@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CheckCircle2, Clock, Play, Users } from "lucide-react";
+import { CheckCircle2, Clock, Pause, Play, Users } from "lucide-react";
 
 interface SessionCardProps {
   session: SessionResponse;
@@ -25,6 +25,8 @@ export function SessionCard({ session, onViewSession }: SessionCardProps) {
         return SessionStatus.PENDING;
       case "active":
         return SessionStatus.ACTIVE;
+      case "paused":
+        return SessionStatus.PAUSED;
       case "concluded":
       case "completed":
         return SessionStatus.COMPLETED;
@@ -35,7 +37,7 @@ export function SessionCard({ session, onViewSession }: SessionCardProps) {
 
   const sessionStatus = session.status || mapStatusDisplay(session.statusDisplay);
 
-  const statusConfig = {
+  const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
     [SessionStatus.PENDING]: {
       color: "bg-yellow-100 text-yellow-800 border-yellow-300",
       icon: <Clock className="h-4 w-4" />,
@@ -45,6 +47,11 @@ export function SessionCard({ session, onViewSession }: SessionCardProps) {
       color: "bg-blue-100 text-blue-800 border-blue-300 animate-pulse",
       icon: <Play className="h-4 w-4" />,
       label: "Active",
+    },
+    [SessionStatus.PAUSED]: {
+      color: "bg-orange-100 text-orange-800 border-orange-300",
+      icon: <Pause className="h-4 w-4" />,
+      label: "Paused",
     },
     [SessionStatus.COMPLETED]: {
       color: "bg-green-100 text-green-800 border-green-300",
@@ -61,9 +68,10 @@ export function SessionCard({ session, onViewSession }: SessionCardProps) {
   };
 
   const config = statusConfig[sessionStatus] || defaultConfig;
-  const borderColor = {
+  const borderColor: Record<string, string> = {
     [SessionStatus.PENDING]: "border-yellow-300 hover:border-yellow-400",
     [SessionStatus.ACTIVE]: "border-blue-300 hover:border-blue-400",
+    [SessionStatus.PAUSED]: "border-orange-300 hover:border-orange-400",
     [SessionStatus.COMPLETED]: "border-green-300 hover:border-green-400",
   };
 

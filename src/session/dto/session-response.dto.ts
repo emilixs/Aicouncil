@@ -33,6 +33,12 @@ export class SessionResponseDto {
   statusDisplay: string;
 
   /**
+   * Session type (DISCUSSION or COMPARISON)
+   */
+  @Expose()
+  type?: string;
+
+  /**
    * Maximum number of messages allowed in this session
    */
   @Expose()
@@ -89,6 +95,7 @@ export class SessionResponseDto {
     const statusDisplayMap: Record<SessionStatus, string> = {
       [SessionStatus.PENDING]: 'pending',
       [SessionStatus.ACTIVE]: 'active',
+      [SessionStatus.PAUSED]: 'paused',
       [SessionStatus.COMPLETED]: 'concluded',
       [SessionStatus.CANCELLED]: 'cancelled',
     };
@@ -98,6 +105,7 @@ export class SessionResponseDto {
       problemStatement: session.problemStatement,
       status: session.status,
       statusDisplay: statusDisplayMap[session.status],
+      type: session.type ?? 'DISCUSSION',
       maxMessages: session.maxMessages,
       consensusReached: session.consensusReached,
       createdAt: session.createdAt,

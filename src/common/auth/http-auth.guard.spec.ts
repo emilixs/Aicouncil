@@ -51,6 +51,19 @@ describe('HttpAuthGuard', () => {
     } as unknown as ExecutionContext;
   }
 
+  describe('non-http contexts', () => {
+    it('should return true and skip auth for WebSocket context', () => {
+      const context = createMockExecutionContext({}, 'ws');
+
+      const result = guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockReflector.getAllAndOverride).not.toHaveBeenCalled();
+      expect(mockAuthService.verifyToken).not.toHaveBeenCalled();
+    });
+  });
+
+
   describe('public routes', () => {
     it('should return true and skip token check when route is marked @Public()', () => {
       mockReflector.getAllAndOverride.mockReturnValue(true);
@@ -63,18 +76,6 @@ describe('HttpAuthGuard', () => {
         IS_PUBLIC_KEY,
         [context.getHandler(), context.getClass()],
       );
-      expect(mockAuthService.verifyToken).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('non-HTTP contexts', () => {
-    it('should return true and skip auth for WebSocket contexts', () => {
-      const context = createMockExecutionContext({}, 'ws');
-
-      const result = guard.canActivate(context);
-
-      expect(result).toBe(true);
-      expect(mockReflector.getAllAndOverride).not.toHaveBeenCalled();
       expect(mockAuthService.verifyToken).not.toHaveBeenCalled();
     });
   });

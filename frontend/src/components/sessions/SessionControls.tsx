@@ -1,4 +1,4 @@
-import { SessionResponse, SessionStatus } from "@/types";
+import { SessionResponse, SessionStatus, SessionType } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,10 +32,12 @@ interface SessionControlsProps {
   session: SessionResponse;
   isConnected: boolean;
   isDiscussionActive: boolean;
+  isPaused: boolean;
   currentExpertTurn: CurrentExpertTurn | null;
   messageCount: number;
   onStartDiscussion: () => void;
   onPauseDiscussion: () => void;
+  onResumeDiscussion: () => void;
   onStopDiscussion: () => void;
 }
 
@@ -43,10 +45,12 @@ export function SessionControls({
   session,
   isConnected,
   isDiscussionActive,
+  isPaused,
   currentExpertTurn,
   messageCount,
   onStartDiscussion,
   onPauseDiscussion,
+  onResumeDiscussion,
   onStopDiscussion,
 }: SessionControlsProps) {
   // Map statusDisplay to SessionStatus enum
@@ -56,6 +60,8 @@ export function SessionControls({
         return SessionStatus.PENDING;
       case "active":
         return SessionStatus.ACTIVE;
+      case "paused":
+        return SessionStatus.PAUSED;
       case "concluded":
       case "completed":
         return SessionStatus.COMPLETED;
@@ -64,17 +70,20 @@ export function SessionControls({
     }
   };
 
-  const sessionStatus = session.status || mapStatusDisplay(session.statusDisplay);
+  const sessionStatus = isPaused ? SessionStatus.PAUSED : (session.status || mapStatusDisplay(session.statusDisplay));
+  const isComparison = session.type === SessionType.COMPARISON;
 
-  const statusColor = {
+  const statusColor: Record<string, string> = {
     [SessionStatus.PENDING]: "bg-yellow-100 text-yellow-800",
     [SessionStatus.ACTIVE]: "bg-blue-100 text-blue-800",
+    [SessionStatus.PAUSED]: "bg-orange-100 text-orange-800",
     [SessionStatus.COMPLETED]: "bg-green-100 text-green-800",
   };
 
-  const statusIcon = {
+  const statusIcon: Record<string, React.ReactNode> = {
     [SessionStatus.PENDING]: <Clock className="h-4 w-4" />,
     [SessionStatus.ACTIVE]: <Play className="h-4 w-4" />,
+    [SessionStatus.PAUSED]: <Pause className="h-4 w-4" />,
     [SessionStatus.COMPLETED]: <CheckCircle2 className="h-4 w-4" />,
   };
 
@@ -86,7 +95,9 @@ export function SessionControls({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Session Details</CardTitle>
-            <CardDescription>Monitor and control the discussion</CardDescription>
+            <CardDescription>
+              {isComparison ? "Monitor the comparison" : "Monitor and control the discussion"}
+            </CardDescription>
           </div>
           <Badge className={statusColor[sessionStatus]}>
             {statusIcon[sessionStatus]}
@@ -124,21 +135,32 @@ export function SessionControls({
 
         <Separator />
 
-        {/* Message Progress */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold text-sm">Message Progress</h4>
-            <span className="text-xs text-muted-foreground">
-              {messageCount} / {session.maxMessages}
-            </span>
+        {/* Message Progress (discussion only) / Expert Response Counter (comparison) */}
+        {isComparison ? (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-sm">Expert Responses</h4>
+              <span className="text-xs text-muted-foreground">
+                {messageCount} of {session.experts.length} experts responded
+              </span>
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-            />
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-sm">Message Progress</h4>
+              <span className="text-xs text-muted-foreground">
+                {messageCount} / {session.maxMessages}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <Separator />
 
@@ -160,12 +182,21 @@ export function SessionControls({
             </Alert>
           )}
 
-          {isDiscussionActive && (
+          {isPaused && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <Pause className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800">
+                Discussion is paused
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isDiscussionActive && !isPaused && (
             <Alert className="border-blue-200 bg-blue-50">
               <Play className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
-                Discussion is active
-                {currentExpertTurn && (
+                {isComparison ? "Comparison is active" : "Discussion is active"}
+                {!isComparison && currentExpertTurn && (
                   <span>
                     {` - Current turn: ${currentExpertTurn.expertName} (Turn ${currentExpertTurn.turnNumber})`}
                   </span>
@@ -193,11 +224,11 @@ export function SessionControls({
             className="w-full"
           >
             <Play className="h-4 w-4 mr-2" />
-            Start Discussion
+            {isComparison ? "Start Comparison" : "Start Discussion"}
           </Button>
         )}
 
-        {sessionStatus === SessionStatus.ACTIVE && (
+        {sessionStatus === SessionStatus.ACTIVE && !isComparison && (
           <>
             <Button
               onClick={onPauseDiscussion}
@@ -220,10 +251,32 @@ export function SessionControls({
           </>
         )}
 
+        {sessionStatus === SessionStatus.PAUSED && !isComparison && (
+          <>
+            <Button
+              onClick={onResumeDiscussion}
+              disabled={!isConnected}
+              className="flex-1"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              Resume
+            </Button>
+            <Button
+              onClick={onStopDiscussion}
+              disabled={!isConnected}
+              variant="destructive"
+              className="flex-1"
+            >
+              <Square className="h-4 w-4 mr-2" />
+              Stop
+            </Button>
+          </>
+        )}
+
         {sessionStatus === SessionStatus.COMPLETED && (
           <Button disabled className="w-full" variant="outline">
             <CheckCircle2 className="h-4 w-4 mr-2" />
-            Discussion Completed
+            {isComparison ? "Comparison Completed" : "Discussion Completed"}
           </Button>
         )}
       </CardFooter>

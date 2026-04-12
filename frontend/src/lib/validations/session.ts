@@ -15,7 +15,7 @@ export const sessionFormSchema = z.object({
     .min(5, "Max messages must be at least 5")
     .max(200, "Max messages must be at most 200")
     .default(30),
+  type: z.enum(["DISCUSSION", "COMPARISON"]).default("DISCUSSION"),
 });
 
 export type SessionFormValues = z.infer<typeof sessionFormSchema>;
-

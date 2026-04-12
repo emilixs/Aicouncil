@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getSession, getSessionMessages } from "@/lib/api/sessions";
 import { useWebSocket } from "@/hooks/use-websocket";
-import { SessionResponse, MessageResponse, SessionStatus } from "@/types";
+import { SessionResponse, MessageResponse, SessionStatus, SessionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { MessageList } from "@/components/sessions/MessageList";
 import { InterventionPanel } from "@/components/sessions/InterventionPanel";
 import { SessionControls } from "@/components/sessions/SessionControls";
+import { ComparisonView } from "@/components/sessions/ComparisonView";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 
@@ -31,6 +32,8 @@ export default function SessionDetailPage() {
         return SessionStatus.PENDING;
       case "active":
         return SessionStatus.ACTIVE;
+      case "paused":
+        return SessionStatus.PAUSED;
       case "concluded":
       case "completed":
         return SessionStatus.COMPLETED;
@@ -45,10 +48,12 @@ export default function SessionDetailPage() {
     messages: wsMessages,
     consensusReached,
     isDiscussionActive,
+    isPaused,
     currentExpertTurn,
     startDiscussion,
     sendIntervention,
     pauseDiscussion,
+    resumeDiscussion,
     stopDiscussion,
     disconnect,
   } = useWebSocket(id || "");
@@ -185,64 +190,122 @@ export default function SessionDetailPage() {
         </Alert>
       )}
 
-      {/* Main Content - Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Messages and Intervention */}
-        <div className="lg:col-span-2 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-3">Discussion</h2>
-            <MessageList
-              messages={allMessages}
-              consensusReached={consensusReached || session.consensusReached}
-              loading={loading}
+      {/* Main Content */}
+      {session.type === SessionType.COMPARISON ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Comparison View */}
+          <div className="lg:col-span-2 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Comparison</h2>
+              <ComparisonView
+                session={session}
+                messages={allMessages}
+                isConnected={isConnected}
+              />
+            </div>
+          </div>
+
+          {/* Right Column - Session Controls and Expert Details */}
+          <div className="space-y-4">
+            <SessionControls
+              session={session}
+              isConnected={isConnected}
+              isDiscussionActive={isDiscussionActive}
+              isPaused={isPaused}
+              currentExpertTurn={currentExpertTurn}
+              messageCount={allMessages.length}
+              onStartDiscussion={startDiscussion}
+              onPauseDiscussion={pauseDiscussion}
+              onResumeDiscussion={resumeDiscussion}
+              onStopDiscussion={stopDiscussion}
+            />
+
+            {/* Expert Details Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Participating Experts</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {session.experts.map((expert) => (
+                  <div key={expert.id} className="pb-3 border-b last:border-b-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-sm">{expert.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {expert.specialty}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {expert.driverType}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Messages and Intervention */}
+          <div className="lg:col-span-2 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold mb-3">Discussion</h2>
+              <MessageList
+                messages={allMessages}
+                consensusReached={consensusReached || session.consensusReached}
+                loading={loading}
+              />
+            </div>
+
+            <InterventionPanel
+              onSendIntervention={sendIntervention}
+              disabled={!isDiscussionActive || (session.status || mapStatusDisplay(session.statusDisplay)) === SessionStatus.COMPLETED}
+              isConnected={isConnected}
             />
           </div>
 
-          <InterventionPanel
-            onSendIntervention={sendIntervention}
-            disabled={!isDiscussionActive || (session.status || mapStatusDisplay(session.statusDisplay)) === SessionStatus.COMPLETED}
-            isConnected={isConnected}
-          />
-        </div>
+          {/* Right Column - Session Controls and Expert Details */}
+          <div className="space-y-4">
+            <SessionControls
+              session={session}
+              isConnected={isConnected}
+              isDiscussionActive={isDiscussionActive}
+              isPaused={isPaused}
+              currentExpertTurn={currentExpertTurn}
+              messageCount={allMessages.length}
+              onStartDiscussion={startDiscussion}
+              onPauseDiscussion={pauseDiscussion}
+              onResumeDiscussion={resumeDiscussion}
+              onStopDiscussion={stopDiscussion}
+            />
 
-        {/* Right Column - Session Controls and Expert Details */}
-        <div className="space-y-4">
-          <SessionControls
-            session={session}
-            isConnected={isConnected}
-            isDiscussionActive={isDiscussionActive}
-            currentExpertTurn={currentExpertTurn}
-            messageCount={allMessages.length}
-            onStartDiscussion={startDiscussion}
-            onPauseDiscussion={pauseDiscussion}
-            onStopDiscussion={stopDiscussion}
-          />
-
-          {/* Expert Details Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Participating Experts</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {session.experts.map((expert) => (
-                <div key={expert.id} className="pb-3 border-b last:border-b-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-sm">{expert.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {expert.specialty}
-                      </p>
+            {/* Expert Details Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Participating Experts</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {session.experts.map((expert) => (
+                  <div key={expert.id} className="pb-3 border-b last:border-b-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-sm">{expert.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {expert.specialty}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {expert.driverType}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {expert.driverType}
-                    </Badge>
                   </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ datasource db {
 enum SessionStatus {
   PENDING
   ACTIVE
+  PAUSED
   COMPLETED
   CANCELLED
 }
@@ -28,6 +29,11 @@ enum DriverType {
   ANTHROPIC
   // GROK uses xAI's API which is OpenAI-compatible
   GROK
+}
+
+enum SessionType {
+  DISCUSSION
+  COMPARISON
 }
 
 model Expert {
@@ -50,6 +56,7 @@ model Session {
   id               String        @id @default(cuid())
   problemStatement String        @db.Text
   status           SessionStatus @default(PENDING)
+  type             SessionType   @default(DISCUSSION)
   maxMessages      Int           @default(20)
   consensusReached Boolean       @default(false)
   createdAt        DateTime      @default(now())
@@ -57,18 +64,30 @@ model Session {
 
   experts  SessionExpert[]
   messages Message[]
+  metrics  SessionMetrics?
 
   @@index([status])
+  @@index([type])
 }
 
 model Message {
-  id             String      @id @default(cuid())
-  sessionId      String
-  expertId       String?
-  content        String      @db.Text
-  role           MessageRole
-  isIntervention Boolean     @default(false)
-  timestamp      DateTime    @default(now())
+  id               String      @id @default(cuid())
+  sessionId        String
+  expertId         String?
+  content          String      @db.Text
+  role             MessageRole
+  isIntervention   Boolean     @default(false)
+  timestamp        DateTime    @default(now())
+  roundNumber      Int?
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  model            String?
+  responseTimeMs   Int?
+  finishReason     String?
+  durationMs       Int?
+  tokenCount       Int?
+  modelUsed        String?
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   expert  Expert? @relation(fields: [expertId], references: [id], onDelete: SetNull)
@@ -90,5 +109,21 @@ model SessionExpert {
   @@unique([sessionId, expertId])
   @@index([sessionId])
   @@index([expertId])
+}
+
+model SessionMetrics {
+  id                    String  @id @default(cuid())
+  sessionId             String  @unique
+  totalTokens           Int     @default(0)
+  totalPromptTokens     Int     @default(0)
+  totalCompletionTokens Int     @default(0)
+  totalRounds           Int     @default(0)
+  totalMessages         Int     @default(0)
+  totalInterventions    Int     @default(0)
+  durationMs            Int     @default(0)
+  avgResponseTimeMs     Float   @default(0)
+  estimatedCostUsd      Float   @default(0)
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 

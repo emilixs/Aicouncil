@@ -9,7 +9,7 @@ import { SessionStatus } from '@prisma/client';
 export class UpdateSessionDto {
   /**
    * Session status indicating the current state.
-   * Valid values: PENDING, ACTIVE, COMPLETED, CANCELLED
+   * Valid values: PENDING, ACTIVE, PAUSED, COMPLETED, CANCELLED
    *
    * Note: The public API term "concluded" maps to SessionStatus.COMPLETED.
    * Use COMPLETED when a session has finished successfully with a resolution.
