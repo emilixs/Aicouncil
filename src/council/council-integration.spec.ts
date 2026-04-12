@@ -189,9 +189,7 @@ describe('CouncilService - pause/resume/stop integration flow', () => {
     expect(messagesAfterPause - messagesBeforePause).toBeLessThanOrEqual(1);
 
     // SESSION_PAUSED event should have been emitted
-    const pausedEvents = emittedEvents.filter(
-      (e) => e.event === 'discussion.session.paused',
-    );
+    const pausedEvents = emittedEvents.filter((e) => e.event === 'discussion.session.paused');
     expect(pausedEvents.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -220,9 +218,7 @@ describe('CouncilService - pause/resume/stop integration flow', () => {
     expect(messagesAfterResume).toBeGreaterThan(messagesAtPause);
 
     // SESSION_RESUMED event should have been emitted
-    const resumedEvents = emittedEvents.filter(
-      (e) => e.event === 'discussion.session.resumed',
-    );
+    const resumedEvents = emittedEvents.filter((e) => e.event === 'discussion.session.resumed');
     expect(resumedEvents.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -282,9 +278,7 @@ describe('CouncilService - pause/resume/stop integration flow', () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Check for session ended event with 'stopped' reason
-    const endedEvents = emittedEvents.filter(
-      (e) => e.event === DISCUSSION_EVENTS.SESSION_ENDED,
-    );
+    const endedEvents = emittedEvents.filter((e) => e.event === DISCUSSION_EVENTS.SESSION_ENDED);
     if (endedEvents.length > 0) {
       expect(endedEvents[0].payload.reason).toBe('stopped');
     }

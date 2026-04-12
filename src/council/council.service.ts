@@ -259,10 +259,7 @@ export class CouncilService {
   /**
    * The main discussion loop, run in background after startDiscussion returns.
    */
-  private async runDiscussionLoop(
-    sessionId: string,
-    session: SessionResponseDto,
-  ): Promise<void> {
+  private async runDiscussionLoop(sessionId: string, session: SessionResponseDto): Promise<void> {
     const experts = session.experts;
     let currentExpertIndex = 0;
     let consensusReached = false;

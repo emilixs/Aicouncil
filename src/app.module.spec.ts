@@ -90,9 +90,7 @@ describe('AppModule - crash recovery on bootstrap', () => {
 
     // Should complete without error even when count is 0
     if (typeof (appModule as any).onApplicationBootstrap === 'function') {
-      await expect(
-        (appModule as any).onApplicationBootstrap(),
-      ).resolves.not.toThrow();
+      await expect((appModule as any).onApplicationBootstrap()).resolves.not.toThrow();
     } else {
       fail('onApplicationBootstrap method does not exist on AppModule');
     }
