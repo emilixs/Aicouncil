@@ -55,9 +55,10 @@ model Expert {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  sessions SessionExpert[]
-  messages Message[]
-  memories ExpertMemory[]
+  sessions  SessionExpert[]
+  messages  Message[]
+  memories  ExpertMemory[]
+  pollVotes PollVote[]
 
   @@index([driverType])
 }
@@ -68,14 +69,18 @@ model Session {
   status           SessionStatus @default(PENDING)
   type             SessionType   @default(DISCUSSION)
   maxMessages      Int           @default(20)
-  consensusReached Boolean       @default(false)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  consensusReached   Boolean       @default(false)
+  consensusThreshold Float         @default(0.8)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  experts  SessionExpert[]
-  messages Message[]
-  memories ExpertMemory[]
-  metrics  SessionMetrics?
+  experts     SessionExpert[]
+  messages    Message[]
+  memories    ExpertMemory[]
+  metrics     SessionMetrics?
+  outcome     DiscussionOutcome?
+  evaluations ConsensusEvaluation[]
+  polls       Poll[]
 
   @@index([status])
   @@index([type])
@@ -157,3 +162,65 @@ model ExpertMemory {
   @@index([sessionId])
 }
 
+model DiscussionOutcome {
+  id              String   @id @default(cuid())
+  sessionId       String   @unique
+  executiveSummary String   @db.Text
+  decisions       Json
+  actionItems     Json
+  keyArguments    Json
+  openQuestions   Json
+  finalEvaluation Json?
+  generatedAt     DateTime @default(now())
+  generatedBy     String?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model ConsensusEvaluation {
+  id                  String   @id @default(cuid())
+  sessionId           String
+  roundNumber         Int
+  convergenceScore    Float
+  consensusReached    Boolean
+  areasOfAgreement    Json
+  areasOfDisagreement Json
+  progressAssessment  String
+  reasoning           String   @db.Text
+  evaluatedAt         DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([sessionId, roundNumber])
+}
+
+model Poll {
+  id        String     @id @default(cuid())
+  sessionId String
+  proposal  String     @db.Text
+  createdBy String
+  status    String     @default("open")
+  createdAt DateTime   @default(now())
+  closedAt  DateTime?
+
+  votes   PollVote[]
+  session Session    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model PollVote {
+  id        String   @id @default(cuid())
+  pollId    String
+  expertId  String
+  vote      String
+  reasoning String   @db.Text
+  createdAt DateTime @default(now())
+
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  expert Expert @relation(fields: [expertId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, expertId])
+  @@index([pollId])
+}

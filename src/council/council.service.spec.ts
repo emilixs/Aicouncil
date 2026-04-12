@@ -6,6 +6,7 @@ import { DriverFactory } from '../llm/factories/driver.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
 import { MemoryService } from '../memory/memory.service';
+import { ConsensusService } from '../consensus/consensus.service';
 import { LLMResponse } from '../llm/dto/llm-response.dto';
 
 describe('CouncilService - Analytics Capture', () => {
@@ -15,6 +16,7 @@ describe('CouncilService - Analytics Capture', () => {
   let driverFactory: jest.Mocked<DriverFactory>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
   let memoryService: jest.Mocked<MemoryService>;
+  let consensusMock: Record<string, jest.Mock>;
 
   const sessionId = 'test-session-id';
   const expert1Id = 'expert-1';
@@ -112,6 +114,21 @@ describe('CouncilService - Analytics Capture', () => {
         { provide: DriverFactory, useValue: driverFactory },
         { provide: EventEmitter2, useValue: eventEmitter },
         { provide: MemoryService, useValue: memoryService },
+        {
+          provide: ConsensusService,
+          useFactory: () => {
+            consensusMock = {
+              evaluateConsensus: jest.fn().mockResolvedValue({ convergenceScore: 0.5, consensusReached: false, areasOfAgreement: [], areasOfDisagreement: [], progressAssessment: 'converging', reasoning: 'test' }),
+              checkStallDetection: jest.fn().mockReturnValue({ stalled: false, stalledRounds: 0 }),
+              hasAutoPolledSession: jest.fn().mockResolvedValue(false),
+              createPoll: jest.fn().mockResolvedValue({ id: 'poll-1', sessionId: 'test', proposal: 'test', createdBy: 'system' }),
+              extractVote: jest.fn().mockResolvedValue(undefined),
+              generateSummary: jest.fn().mockResolvedValue(undefined),
+              clearSessionState: jest.fn(),
+            };
+            return consensusMock;
+          },
+        },
       ],
     }).compile();
 
@@ -443,24 +460,24 @@ describe('CouncilService - Analytics Capture', () => {
   });
 
   describe('consensus detection', () => {
-    it.each([
-      'I agree with the proposal',
-      'consensus reached on this topic',
-      'we agree on the approach',
-      'I concur with the analysis',
-      'agreed, let us proceed',
-      'we have consensus',
-      'we reached consensus',
-      'we are in agreement',
-    ])('detects consensus in: "%s"', async (content) => {
+    it('detects consensus when LLM evaluator returns consensusReached with high score', async () => {
+      consensusMock.evaluateConsensus.mockResolvedValue({
+        convergenceScore: 0.9,
+        consensusReached: true,
+        areasOfAgreement: ['all agree on approach'],
+        areasOfDisagreement: [],
+        progressAssessment: 'converging',
+        reasoning: 'Full agreement',
+      });
+
       sessionService.findOne.mockResolvedValue(mockSession as any);
       sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
-      (mockDriver.chat as jest.Mock).mockResolvedValueOnce(makeLLMResponse(content));
+      (mockDriver.chat as jest.Mock).mockResolvedValue(makeLLMResponse('Expert response'));
 
       messageService.create.mockResolvedValue({
-        id: 'msg-1', sessionId, content, role: MessageRole.ASSISTANT,
+        id: 'msg-1', sessionId, content: 'Expert response', role: MessageRole.ASSISTANT,
         expertId: expert1Id, isIntervention: false, timestamp: new Date(),
       } as any);
       messageService.countBySession.mockResolvedValue(0);
@@ -473,7 +490,7 @@ describe('CouncilService - Analytics Capture', () => {
       expect(consensusEvent).toBeDefined();
     });
 
-    it('does not detect consensus for normal discussion content', async () => {
+    it('does not detect consensus when evaluator returns low convergence', async () => {
       sessionService.findOne.mockResolvedValue({ ...mockSession, maxMessages: 2 } as any);
       sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
 
@@ -499,6 +516,47 @@ describe('CouncilService - Analytics Capture', () => {
         (call) => call[0] === 'discussion.consensus.reached',
       );
       expect(consensusEvent).toBeUndefined();
+    });
+  });
+
+  describe('auto-poll trigger', () => {
+    it('creates poll and injects SYSTEM message when convergenceScore >= 0.7 and no consensus', async () => {
+      consensusMock.evaluateConsensus.mockResolvedValue({
+        convergenceScore: 0.75,
+        consensusReached: false,
+        areasOfAgreement: ['Use microservices architecture'],
+        areasOfDisagreement: [],
+        progressAssessment: 'converging',
+        reasoning: 'test',
+      });
+
+      sessionService.findOne.mockResolvedValue({ ...mockSession, maxMessages: 4 } as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockResolvedValue(makeLLMResponse('I think we should use microservices'));
+
+      let msgCount = 0;
+      messageService.create.mockImplementation(async (data: any) => {
+        msgCount++;
+        return {
+          id: `msg-${msgCount}`, sessionId, content: data.content,
+          role: data.role ?? MessageRole.ASSISTANT, expertId: data.expertId,
+          isIntervention: false, timestamp: new Date(),
+        } as any;
+      });
+      messageService.countBySession.mockImplementation(async () => msgCount);
+
+      await setupAndRunLoop().catch(() => {});
+
+      expect(consensusMock.createPoll).toHaveBeenCalledWith(sessionId, 'Use microservices architecture', 'system');
+      expect(consensusMock.createPoll).toHaveReturnedWith(expect.any(Promise));
+
+      const systemMessages = messageService.create.mock.calls.filter(
+        (call: any) => call[0].role === MessageRole.SYSTEM,
+      );
+      expect(systemMessages.length).toBeGreaterThanOrEqual(1);
+      expect(systemMessages[0][0].content).toContain('POLL:');
     });
   });
 

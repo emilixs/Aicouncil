@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsInt,
   IsEnum,
+  IsNumber,
   Min,
   Max,
 } from 'class-validator';
@@ -55,4 +56,10 @@ export class CreateSessionDto {
   @IsOptional()
   @IsEnum(SessionType)
   type?: SessionType;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  @Max(1.0)
+  consensusThreshold?: number;
 }

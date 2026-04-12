@@ -33,6 +33,14 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   XAI_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  CONSENSUS_EVALUATOR_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  CONSENSUS_EVALUATOR_DRIVER?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

@@ -7,6 +7,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
 import { BadRequestException } from '@nestjs/common';
 import { MemoryService } from '../memory/memory.service';
+import { ConsensusService } from '../consensus/consensus.service';
 import { DISCUSSION_EVENTS } from './events/discussion.events';
 
 describe('CouncilService - Pause/Resume/Stop', () => {
@@ -87,6 +88,18 @@ describe('CouncilService - Pause/Resume/Stop', () => {
             getRelevantMemories: jest.fn().mockResolvedValue({ memories: [], ids: [] }),
             formatMemoriesForInjection: jest.fn().mockReturnValue(''),
             generateSessionMemory: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: ConsensusService,
+          useValue: {
+            evaluateConsensus: jest.fn().mockResolvedValue({ convergenceScore: 0.5, consensusReached: false, areasOfAgreement: [], areasOfDisagreement: [], progressAssessment: 'converging', reasoning: 'test' }),
+            checkStallDetection: jest.fn().mockReturnValue({ stalled: false, stalledRounds: 0 }),
+            hasAutoPolledSession: jest.fn().mockResolvedValue(false),
+            createPoll: jest.fn().mockResolvedValue({ id: 'poll-1', sessionId: 'test', proposal: 'test', createdBy: 'system' }),
+            extractVote: jest.fn().mockResolvedValue(undefined),
+            generateSummary: jest.fn().mockResolvedValue(undefined),
+            clearSessionState: jest.fn(),
           },
         },
       ],
