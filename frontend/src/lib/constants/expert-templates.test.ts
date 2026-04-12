@@ -3,8 +3,8 @@ import { EXPERT_TEMPLATES } from './expert-templates';
 import { DriverType } from '@/types/expert';
 
 describe('EXPERT_TEMPLATES', () => {
-  it('should contain exactly 8 templates', () => {
-    expect(EXPERT_TEMPLATES).toHaveLength(8);
+  it('should contain exactly 14 templates', () => {
+    expect(EXPERT_TEMPLATES).toHaveLength(14);
   });
 
   it.each([
