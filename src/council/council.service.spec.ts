@@ -7,18 +7,6 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
 import { LLMResponse } from '../llm/dto/llm-response.dto';
 
-/**
- * RED phase tests for CouncilService analytics capture.
- *
- * These tests verify that:
- * 1. Discussion loop captures token usage from LLMResponse
- * 2. Round number is tracked and incremented correctly
- * 3. Response timing is measured around driver.chat()
- * 4. Model and finishReason are captured from LLMResponse
- * 5. Intervention messages get round number
- * 6. concludeSession triggers computeSessionMetrics
- */
-
 describe('CouncilService - Analytics Capture', () => {
   let councilService: CouncilService;
   let messageService: jest.Mocked<MessageService>;
@@ -74,6 +62,8 @@ describe('CouncilService - Analytics Capture', () => {
     ],
   };
 
+  const normalizedExperts = mockSession.experts.map((e) => e.expert);
+
   const makeLLMResponse = (content: string, overrides?: Partial<LLMResponse>): LLMResponse => ({
     content,
     finishReason: 'stop',
@@ -125,6 +115,13 @@ describe('CouncilService - Analytics Capture', () => {
     councilService = module.get<CouncilService>(CouncilService);
   });
 
+  // Helper: set up control flags as startDiscussion would, then run the loop directly
+  function setupAndRunLoop() {
+    (councilService as any).interventionQueues.set(sessionId, []);
+    (councilService as any).sessionControlFlags.set(sessionId, 'running');
+    return councilService.runDiscussionLoop(sessionId, mockSession as any, normalizedExperts as any);
+  }
+
   describe('token usage capture', () => {
     it('should pass promptTokens, completionTokens, totalTokens from LLMResponse to message creation', async () => {
       const llmResponse = makeLLMResponse('I think the answer is...');
@@ -149,9 +146,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      // The test expects that messageService.create is called with analytics fields
-      // This will FAIL because council.service.ts currently discards LLMResponse usage data
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await setupAndRunLoop().catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -187,7 +182,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await setupAndRunLoop().catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -226,18 +221,15 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockImplementation(async () => msgCount);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await setupAndRunLoop().catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
 
-      // First two messages (expert1, expert2) should be round 1
-      // Third message (expert1 again) should be round 2
       if (createCalls.length >= 3) {
         expect(createCalls[0][0].roundNumber).toBe(1);
         expect(createCalls[1][0].roundNumber).toBe(1);
         expect(createCalls[2][0].roundNumber).toBe(2);
       } else {
-        // Force failure if not enough messages were created
         expect(createCalls.length).toBeGreaterThanOrEqual(3);
       }
     });
@@ -267,7 +259,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await setupAndRunLoop().catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -303,7 +295,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await setupAndRunLoop().catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -333,7 +325,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await setupAndRunLoop().catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -343,13 +335,11 @@ describe('CouncilService - Analytics Capture', () => {
 
   describe('intervention round number', () => {
     it('should include roundNumber when creating intervention messages', async () => {
-      // This tests that processInterventions passes roundNumber
-      // Currently interventions don't have roundNumber — this should FAIL
       sessionService.findOne.mockResolvedValue(mockSession as any);
       sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
 
-      // Queue an intervention before starting
-      councilService.queueIntervention(sessionId, 'User intervention', 'user-1');
+      // Queue an intervention before running the loop
+      (councilService as any).interventionQueues.set(sessionId, [{ content: 'User intervention', userId: 'user-1' }]);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock)
@@ -366,9 +356,9 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      (councilService as any).sessionControlFlags.set(sessionId, 'running');
+      await councilService.runDiscussionLoop(sessionId, mockSession as any, normalizedExperts as any).catch(() => {});
 
-      // Find the intervention message creation call
       const interventionCall = messageService.create.mock.calls.find(
         (call) => call[0].isIntervention === true,
       );
@@ -377,6 +367,28 @@ describe('CouncilService - Analytics Capture', () => {
         expect(interventionCall[0].roundNumber).toBeDefined();
         expect(typeof interventionCall[0].roundNumber).toBe('number');
       }
+    });
+  });
+
+  describe('startDiscussion (async fire-and-forget)', () => {
+    it('should return immediately without waiting for the loop to finish', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      // Make chat take a long time — startDiscussion should return before it resolves
+      (mockDriver.chat as jest.Mock).mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve(makeLLMResponse('I agree, consensus reached')), 5000)),
+      );
+
+      messageService.countBySession.mockResolvedValue(0);
+
+      const start = Date.now();
+      const result = await councilService.startDiscussion(sessionId);
+      const elapsed = Date.now() - start;
+
+      expect(elapsed).toBeLessThan(1000);
+      expect(result).toBeDefined();
     });
   });
 });
