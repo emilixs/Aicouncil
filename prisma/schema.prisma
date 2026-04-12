@@ -31,23 +31,33 @@ enum DriverType {
   GROK
 }
 
+enum MemoryType {
+  SESSION_SUMMARY
+  KEY_INSIGHT
+  USER_NOTE
+}
+
 enum SessionType {
   DISCUSSION
   COMPARISON
 }
 
 model Expert {
-  id           String     @id @default(cuid())
-  name         String
-  specialty    String
-  systemPrompt String     @db.Text
-  driverType   DriverType
-  config       Json
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id               String     @id @default(cuid())
+  name             String
+  specialty        String
+  systemPrompt     String     @db.Text
+  driverType       DriverType
+  config           Json
+  memoryEnabled    Boolean    @default(true)
+  memoryMaxEntries Int        @default(50)
+  memoryMaxInject  Int        @default(5)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   sessions SessionExpert[]
   messages Message[]
+  memories ExpertMemory[]
 
   @@index([driverType])
 }
@@ -64,6 +74,7 @@ model Session {
 
   experts  SessionExpert[]
   messages Message[]
+  memories ExpertMemory[]
   metrics  SessionMetrics?
 
   @@index([status])
@@ -125,5 +136,24 @@ model SessionMetrics {
   estimatedCostUsd      Float   @default(0)
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model ExpertMemory {
+  id        String     @id @default(cuid())
+  expertId  String
+  sessionId String?
+  type      MemoryType
+  content   String     @db.Text
+  relevance Float      @default(1.0)
+  metadata  Json?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  expert  Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([expertId])
+  @@index([expertId, relevance])
+  @@index([sessionId])
 }
 

@@ -5,6 +5,7 @@ import { ComparisonService } from './comparison.service';
 import { SessionModule } from '../session/session.module';
 import { MessageModule } from '../message/message.module';
 import { LlmModule } from '../llm/llm.module';
+import { MemoryModule } from '../memory/memory.module';
 import { DiscussionGateway } from './gateways/discussion.gateway';
 
 /**
@@ -25,7 +26,7 @@ import { DiscussionGateway } from './gateways/discussion.gateway';
  * - CouncilService: Available for future WebSocket gateway to enable real-time streaming
  */
 @Module({
-  imports: [SessionModule, MessageModule, LlmModule],
+  imports: [SessionModule, MessageModule, LlmModule, MemoryModule],
   controllers: [CouncilController],
   providers: [CouncilService, ComparisonService, DiscussionGateway],
   exports: [CouncilService, ComparisonService],

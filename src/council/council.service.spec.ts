@@ -5,6 +5,7 @@ import { MessageService } from '../message/message.service';
 import { DriverFactory } from '../llm/factories/driver.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
+import { MemoryService } from '../memory/memory.service';
 import { LLMResponse } from '../llm/dto/llm-response.dto';
 
 describe('CouncilService - Analytics Capture', () => {
@@ -13,6 +14,7 @@ describe('CouncilService - Analytics Capture', () => {
   let sessionService: jest.Mocked<SessionService>;
   let driverFactory: jest.Mocked<DriverFactory>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
+  let memoryService: jest.Mocked<MemoryService>;
 
   const sessionId = 'test-session-id';
   const expert1Id = 'expert-1';
@@ -102,6 +104,12 @@ describe('CouncilService - Analytics Capture', () => {
       emit: jest.fn(),
     } as any;
 
+    memoryService = {
+      getRelevantMemories: jest.fn().mockResolvedValue({ memories: [], totalFound: 0, ids: [] }),
+      formatMemoriesForInjection: jest.fn().mockReturnValue(''),
+      generateSessionMemory: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CouncilService,
@@ -109,6 +117,7 @@ describe('CouncilService - Analytics Capture', () => {
         { provide: MessageService, useValue: messageService },
         { provide: DriverFactory, useValue: driverFactory },
         { provide: EventEmitter2, useValue: eventEmitter },
+        { provide: MemoryService, useValue: memoryService },
       ],
     }).compile();
 
@@ -119,7 +128,11 @@ describe('CouncilService - Analytics Capture', () => {
   function setupAndRunLoop() {
     (councilService as any).interventionQueues.set(sessionId, []);
     (councilService as any).sessionControlFlags.set(sessionId, 'running');
-    return councilService.runDiscussionLoop(sessionId, mockSession as any, normalizedExperts as any);
+    return councilService.runDiscussionLoop(
+      sessionId,
+      mockSession as any,
+      normalizedExperts as any,
+    );
   }
 
   describe('token usage capture', () => {
@@ -360,7 +373,9 @@ describe('CouncilService - Analytics Capture', () => {
       } as any);
 
       // Queue an intervention before running the loop
-      (councilService as any).interventionQueues.set(sessionId, [{ content: 'User intervention', userId: 'user-1' }]);
+      (councilService as any).interventionQueues.set(sessionId, [
+        { content: 'User intervention', userId: 'user-1' },
+      ]);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock).mockResolvedValueOnce(
@@ -379,7 +394,9 @@ describe('CouncilService - Analytics Capture', () => {
       messageService.countBySession.mockResolvedValue(0);
 
       (councilService as any).sessionControlFlags.set(sessionId, 'running');
-      await councilService.runDiscussionLoop(sessionId, mockSession as any, normalizedExperts as any).catch(() => {});
+      await councilService
+        .runDiscussionLoop(sessionId, mockSession as any, normalizedExperts as any)
+        .catch(() => {});
 
       const interventionCall = messageService.create.mock.calls.find(
         (call) => call[0].isIntervention === true,
@@ -397,18 +414,28 @@ describe('CouncilService - Analytics Capture', () => {
       jest.useFakeTimers();
 
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve(makeLLMResponse('I agree, consensus reached')), 5000)),
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve(makeLLMResponse('I agree, consensus reached')), 5000),
+          ),
       );
 
       messageService.countBySession.mockResolvedValue(0);
       messageService.create.mockResolvedValue({
-        id: 'msg-1', sessionId, content: 'I agree, consensus reached',
-        role: MessageRole.ASSISTANT, expertId: 'expert-1',
-        isIntervention: false, timestamp: new Date(),
+        id: 'msg-1',
+        sessionId,
+        content: 'I agree, consensus reached',
+        role: MessageRole.ASSISTANT,
+        expertId: 'expert-1',
+        isIntervention: false,
+        timestamp: new Date(),
       } as any);
 
       const result = await councilService.startDiscussion(sessionId);

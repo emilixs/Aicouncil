@@ -7,6 +7,11 @@ import {
   IsObject,
   ValidateNested,
   IsDefined,
+  IsOptional,
+  IsBoolean,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DriverType } from '@prisma/client';
@@ -55,4 +60,20 @@ export class CreateExpertDto {
   @ValidateNested()
   @Type(() => LLMConfig)
   config: LLMConfig;
+
+  @IsOptional()
+  @IsBoolean()
+  memoryEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  memoryMaxEntries?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  memoryMaxInject?: number;
 }

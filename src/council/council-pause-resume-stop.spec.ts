@@ -6,6 +6,7 @@ import { DriverFactory } from '../llm/factories/driver.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
 import { BadRequestException } from '@nestjs/common';
+import { MemoryService } from '../memory/memory.service';
 import { DISCUSSION_EVENTS } from './events/discussion.events';
 
 describe('CouncilService - Pause/Resume/Stop', () => {
@@ -80,6 +81,14 @@ describe('CouncilService - Pause/Resume/Stop', () => {
         { provide: MessageService, useValue: messageService },
         { provide: DriverFactory, useValue: driverFactory },
         { provide: EventEmitter2, useValue: eventEmitter },
+        {
+          provide: MemoryService,
+          useValue: {
+            getRelevantMemories: jest.fn().mockResolvedValue({ memories: [], ids: [] }),
+            formatMemoriesForInjection: jest.fn().mockReturnValue(''),
+            generateSessionMemory: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -89,7 +98,11 @@ describe('CouncilService - Pause/Resume/Stop', () => {
   function setupAndRunLoop() {
     (councilService as any).interventionQueues.set(sessionId, []);
     (councilService as any).sessionControlFlags.set(sessionId, 'running');
-    return councilService.runDiscussionLoop(sessionId, mockSession as any, normalizedExperts as any);
+    return councilService.runDiscussionLoop(
+      sessionId,
+      mockSession as any,
+      normalizedExperts as any,
+    );
   }
 
   describe('pauseDiscussion', () => {
@@ -117,7 +130,11 @@ describe('CouncilService - Pause/Resume/Stop', () => {
             usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
           };
         }
-        return { content: 'Should not reach', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
+        return {
+          content: 'Should not reach',
+          finishReason: 'stop',
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        };
       });
 
       messageService.create.mockResolvedValue({
