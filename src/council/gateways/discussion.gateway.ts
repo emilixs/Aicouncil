@@ -26,6 +26,12 @@ import {
   DiscussionPausedEvent,
   DiscussionResumedEvent,
   DiscussionStoppedEvent,
+  ConsensusEvaluationEvent,
+  DiscussionSummaryEvent,
+  DiscussionStalledEvent,
+  PollCreatedEvent,
+  PollVoteEvent,
+  PollClosedEvent,
 } from '../events/discussion.events';
 import {
   COMPARISON_EVENTS,
@@ -221,6 +227,60 @@ export class DiscussionGateway
     this.eventEmitter.on(DISCUSSION_EVENTS.DISCUSSION_STOPPED, (event: DiscussionStoppedEvent) => {
       const roomName = `session:${event.sessionId}`;
       this.server.to(roomName).emit('discussion-stopped', { sessionId: event.sessionId });
+    });
+
+    this.eventEmitter.on(DISCUSSION_EVENTS.CONSENSUS_EVALUATION, (event: ConsensusEvaluationEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('consensus-evaluation', {
+        sessionId: event.sessionId,
+        evaluation: event.evaluation,
+      });
+    });
+
+    this.eventEmitter.on(DISCUSSION_EVENTS.DISCUSSION_SUMMARY, (event: DiscussionSummaryEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('discussion-summary', {
+        sessionId: event.sessionId,
+        outcome: event.outcome,
+      });
+    });
+
+    this.eventEmitter.on(DISCUSSION_EVENTS.DISCUSSION_STALLED, (event: DiscussionStalledEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('discussion-stalled', {
+        sessionId: event.sessionId,
+        stalledRounds: event.stalledRounds,
+      });
+    });
+
+    this.eventEmitter.on(DISCUSSION_EVENTS.POLL_CREATED, (event: PollCreatedEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('poll-created', {
+        sessionId: event.sessionId,
+        pollId: event.pollId,
+        proposal: event.proposal,
+      });
+    });
+
+    this.eventEmitter.on(DISCUSSION_EVENTS.POLL_VOTE, (event: PollVoteEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('poll-vote', {
+        sessionId: event.sessionId,
+        pollId: event.pollId,
+        expertId: event.expertId,
+        expertName: event.expertName,
+        vote: event.vote,
+        reasoning: event.reasoning,
+      });
+    });
+
+    this.eventEmitter.on(DISCUSSION_EVENTS.POLL_CLOSED, (event: PollClosedEvent) => {
+      const roomName = `session:${event.sessionId}`;
+      this.server.to(roomName).emit('poll-closed', {
+        sessionId: event.sessionId,
+        pollId: event.pollId,
+        results: event.results,
+      });
     });
 
     // Comparison events
