@@ -6,8 +6,11 @@ import {
   Body,
   NotFoundException,
 } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 import { ConsensusService } from './consensus.service';
-import { CreatePollDto } from './dto/poll.dto';
+import { CreatePollDto, PollResponseDto } from './dto/poll.dto';
+import { DiscussionOutcomeResponseDto } from './dto/discussion-outcome.dto';
+import { ConsensusEvaluationResponseDto } from './dto/consensus-evaluation.dto';
 
 @Controller('sessions')
 export class ConsensusController {
@@ -19,12 +22,13 @@ export class ConsensusController {
     if (!outcome) {
       throw new NotFoundException(`No outcome found for session ${sessionId}`);
     }
-    return outcome;
+    return plainToInstance(DiscussionOutcomeResponseDto, outcome, { excludeExtraneousValues: true });
   }
 
   @Get(':id/evaluations')
   async getEvaluations(@Param('id') sessionId: string) {
-    return this.consensusService.getEvaluations(sessionId);
+    const evaluations = await this.consensusService.getEvaluations(sessionId);
+    return plainToInstance(ConsensusEvaluationResponseDto, evaluations, { excludeExtraneousValues: true });
   }
 
   @Post(':id/poll')
@@ -32,11 +36,13 @@ export class ConsensusController {
     @Param('id') sessionId: string,
     @Body() createPollDto: CreatePollDto,
   ) {
-    return this.consensusService.createPoll(sessionId, createPollDto.proposal, 'user');
+    const poll = await this.consensusService.createPoll(sessionId, createPollDto.proposal, 'user');
+    return plainToInstance(PollResponseDto, poll, { excludeExtraneousValues: true });
   }
 
   @Get(':id/polls')
   async getPolls(@Param('id') sessionId: string) {
-    return this.consensusService.getPolls(sessionId);
+    const polls = await this.consensusService.getPolls(sessionId);
+    return plainToInstance(PollResponseDto, polls, { excludeExtraneousValues: true });
   }
 }

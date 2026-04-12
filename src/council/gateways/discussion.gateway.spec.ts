@@ -592,7 +592,7 @@ describe('DiscussionGateway', () => {
 
       gateway.onModuleInit();
 
-      expect(eventEmitter.on).toHaveBeenCalledTimes(12);
+      expect(eventEmitter.on).toHaveBeenCalledTimes(18);
     });
 
     it('broadcasts MESSAGE_CREATED to session room', () => {

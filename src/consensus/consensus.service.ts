@@ -75,7 +75,7 @@ export class ConsensusService {
       let priorContext: string | undefined;
       if (roundNumber > 3) {
         const priorMessages = allMessages
-          .filter((m: any) => m.roundNumber !== null && m.roundNumber < roundNumber)
+          .filter((m: any) => m.roundNumber !== null && m.roundNumber < roundNumber && m.role === 'ASSISTANT')
           .map((m: any) => ({ expertName: m.expertName ?? 'Unknown', content: m.content, role: m.role }));
         priorContext = await this.summarizeMessages(priorMessages);
       } else {
@@ -183,7 +183,6 @@ export class ConsensusService {
     }
 
     try {
-      const { buildChunkSummaryPrompt } = await import('./prompts/summary-generator.prompt');
       const driver = this.getEvaluatorDriver();
       const config = { model: this.getEvaluatorModel() } as LLMConfig;
       const response = await driver.chat(

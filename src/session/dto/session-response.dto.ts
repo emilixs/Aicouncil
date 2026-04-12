@@ -111,7 +111,7 @@ export class SessionResponseDto {
       type: session.type ?? 'DISCUSSION',
       maxMessages: session.maxMessages,
       consensusReached: session.consensusReached,
-      consensusThreshold: (session as any).consensusThreshold ?? 0.8,
+      consensusThreshold: session.consensusThreshold ?? 0.8,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
       experts: session.experts.map((se) => ExpertResponseDto.fromPrisma(se.expert)),

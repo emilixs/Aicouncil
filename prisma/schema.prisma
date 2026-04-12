@@ -192,7 +192,7 @@ model ConsensusEvaluation {
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
-  @@index([roundNumber])
+  @@index([sessionId, roundNumber])
 }
 
 model Poll {

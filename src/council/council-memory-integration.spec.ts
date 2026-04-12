@@ -46,10 +46,11 @@ const mockMemoryService = {
 };
 
 const mockConsensusService = {
-  evaluateConsensus: jest.fn().mockResolvedValue({ convergenceScore: 0.5, consensusReached: false, areasOfAgreement: [], areasOfDisagreement: [], progressAssessment: 'ongoing', reasoning: 'test' }),
+  evaluateConsensus: jest.fn().mockResolvedValue({ convergenceScore: 0.5, consensusReached: false, areasOfAgreement: [], areasOfDisagreement: [], progressAssessment: 'converging', reasoning: 'test' }),
   checkStallDetection: jest.fn().mockReturnValue({ stalled: false, stalledRounds: 0 }),
   hasAutoPolledSession: jest.fn().mockResolvedValue(false),
-  createPoll: jest.fn().mockResolvedValue(undefined),
+  createPoll: jest.fn().mockResolvedValue({ id: 'poll-1', sessionId: 'test', proposal: 'test', createdBy: 'system' }),
+  extractVote: jest.fn().mockResolvedValue(undefined),
   generateSummary: jest.fn().mockResolvedValue(undefined),
   clearSessionState: jest.fn(),
 };
@@ -254,7 +255,7 @@ describe('CouncilService — Memory Integration', () => {
         consensusReached: true,
         areasOfAgreement: ['all agree'],
         areasOfDisagreement: [],
-        progressAssessment: 'done',
+        progressAssessment: 'converging',
         reasoning: 'consensus reached',
       });
 

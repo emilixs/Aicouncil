@@ -273,6 +273,7 @@ export class CouncilService {
       let currentRound = 1;
       let stopped = false;
       let lastStallResult: { stalled: boolean; stalledRounds: number } | undefined;
+      let activePoll: { id: string; proposal: string } | null = null;
 
       while (!consensusReached && !stopped) {
         const controlFlag = this.sessionControlFlags.get(sessionId);
@@ -371,6 +372,21 @@ export class CouncilService {
             message,
           } as DiscussionMessageEvent);
 
+          if (activePoll) {
+            this.consensusService
+              .extractVote(
+                activePoll.id,
+                activePoll.proposal,
+                currentExpert.id,
+                currentExpert.name,
+                sessionId,
+                trimmedContent,
+              )
+              .catch((err) =>
+                this.logger.error(`Vote extraction failed for ${currentExpert.name}: ${err.message}`),
+              );
+          }
+
         } catch (error) {
           this.eventEmitter.emit(DISCUSSION_EVENTS.ERROR, {
             sessionId,
@@ -399,6 +415,7 @@ export class CouncilService {
         currentExpertIndex++;
 
         if (currentExpertIndex % experts.length === 0) {
+          activePoll = null;
           currentRound++;
 
           const evaluation = await this.consensusService.evaluateConsensus(
@@ -408,7 +425,7 @@ export class CouncilService {
             currentRound - 1,
           );
 
-          const threshold = (session as any).consensusThreshold ?? 0.8;
+          const threshold = session.consensusThreshold ?? 0.8;
           if (
             evaluation.consensusReached &&
             evaluation.convergenceScore >= threshold
@@ -439,7 +456,20 @@ export class CouncilService {
           ) {
             const leadingProposal = evaluation.areasOfAgreement[0];
             if (leadingProposal) {
-              await this.consensusService.createPoll(sessionId, leadingProposal, 'system');
+              const poll = await this.consensusService.createPoll(sessionId, leadingProposal, 'system');
+              activePoll = { id: poll.id, proposal: leadingProposal };
+
+              const pollPrompt = `POLL: Please respond to the following proposal with your vote (agree/disagree/agree_with_reservations) and brief reasoning: ${leadingProposal}`;
+              const pollMessage = await this.messageService.create({
+                sessionId,
+                content: pollPrompt,
+                role: MessageRole.SYSTEM,
+                roundNumber: currentRound,
+              });
+              this.eventEmitter.emit(DISCUSSION_EVENTS.MESSAGE_CREATED, {
+                sessionId,
+                message: pollMessage,
+              } as DiscussionMessageEvent);
             }
           }
         }
