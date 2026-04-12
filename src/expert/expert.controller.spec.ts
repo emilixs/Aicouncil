@@ -1,8 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, INestApplication } from '@nestjs/common';
-import {
-  FastifyAdapter,
-} from '@nestjs/platform-fastify';
+import { FastifyAdapter } from '@nestjs/platform-fastify';
 import request from 'supertest';
 import { ExpertController } from './expert.controller';
 import { ExpertService } from './expert.service';
@@ -44,10 +42,7 @@ describe('ExpertController - POST /experts/:id/clone', () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [ExpertController],
-      providers: [
-        ExpertService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+      providers: [ExpertService, { provide: PrismaService, useValue: prisma }],
     }).compile();
 
     app = moduleFixture.createNestApplication(new FastifyAdapter());

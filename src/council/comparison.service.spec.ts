@@ -175,9 +175,7 @@ describe('ComparisonService', () => {
         expertName: mockExpertB.name,
       });
 
-      messageService.create
-        .mockResolvedValueOnce(messageA)
-        .mockResolvedValueOnce(messageB);
+      messageService.create.mockResolvedValueOnce(messageA).mockResolvedValueOnce(messageB);
 
       await service.startComparison(sessionId);
 
@@ -275,9 +273,7 @@ describe('ComparisonService', () => {
 
       // Session should still transition to COMPLETED
       const updateCalls = sessionService.update.mock.calls;
-      const completedCall = updateCalls.find(
-        ([, dto]) => dto.status === SessionStatus.COMPLETED,
-      );
+      const completedCall = updateCalls.find(([, dto]) => dto.status === SessionStatus.COMPLETED);
       expect(completedCall).toBeDefined();
     });
 

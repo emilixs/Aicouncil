@@ -25,15 +25,11 @@ export class ComparisonService {
     const session = await this.sessionService.findOne(sessionId);
 
     if (session.type !== 'COMPARISON') {
-      throw new BadRequestException(
-        'Session type must be COMPARISON to start a comparison',
-      );
+      throw new BadRequestException('Session type must be COMPARISON to start a comparison');
     }
 
     if (session.status !== SessionStatus.PENDING) {
-      throw new BadRequestException(
-        'Session must be in PENDING status to start a comparison',
-      );
+      throw new BadRequestException('Session must be in PENDING status to start a comparison');
     }
 
     // Transition to ACTIVE

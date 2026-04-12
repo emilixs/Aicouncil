@@ -47,8 +47,7 @@ export class AnalyticsService {
     }
 
     if (responseTimes.length > 0) {
-      avgResponseTimeMs =
-        responseTimes.reduce((sum, t) => sum + t, 0) / responseTimes.length;
+      avgResponseTimeMs = responseTimes.reduce((sum, t) => sum + t, 0) / responseTimes.length;
     }
 
     // Estimate cost per model
@@ -104,7 +103,12 @@ export class AnalyticsService {
 
     const aggregate = await this.prisma.sessionMetrics.aggregate({
       where: metricsWhere,
-      _sum: { totalTokens: true, totalPromptTokens: true, totalCompletionTokens: true, estimatedCostUsd: true },
+      _sum: {
+        totalTokens: true,
+        totalPromptTokens: true,
+        totalCompletionTokens: true,
+        estimatedCostUsd: true,
+      },
       _avg: { totalRounds: true },
       _count: true,
     });
@@ -294,9 +298,7 @@ export class AnalyticsService {
     const combMap = new Map<string, { expertCombination: string[]; sessions: any[] }>();
 
     for (const session of sessions) {
-      const expertIds = ((session as any).experts ?? [])
-        .map((e: any) => e.expertId)
-        .sort();
+      const expertIds = ((session as any).experts ?? []).map((e: any) => e.expertId).sort();
       const key = expertIds.join(',');
       const existing = combMap.get(key) || {
         expertCombination: expertIds,

@@ -35,9 +35,7 @@ describe('AnalyticsController', () => {
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AnalyticsController],
-      providers: [
-        { provide: AnalyticsService, useValue: mockAnalyticsService },
-      ],
+      providers: [{ provide: AnalyticsService, useValue: mockAnalyticsService }],
     }).compile();
 
     app = module.createNestApplication();
@@ -66,9 +64,7 @@ describe('AnalyticsController', () => {
 
       mockAnalyticsService.getOverview.mockResolvedValue(overviewData);
 
-      const response = await request(app.getHttpServer())
-        .get('/analytics/overview')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/analytics/overview').expect(200);
 
       expect(response.body).toEqual(overviewData);
       expect(mockAnalyticsService.getOverview).toHaveBeenCalled();
@@ -108,9 +104,7 @@ describe('AnalyticsController', () => {
         avgRoundsToConsensus: 0,
       });
 
-      const response = await request(app.getHttpServer())
-        .get('/analytics/overview')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/analytics/overview').expect(200);
 
       expect(response.body.totalSessions).toBe(0);
       expect(response.body.totalTokens).toBe(0);
@@ -135,9 +129,7 @@ describe('AnalyticsController', () => {
 
       mockAnalyticsService.getSessionsList.mockResolvedValue(sessionsData);
 
-      const response = await request(app.getHttpServer())
-        .get('/analytics/sessions')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/analytics/sessions').expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body).toHaveLength(1);
@@ -147,9 +139,7 @@ describe('AnalyticsController', () => {
     it('should return empty array for no sessions', async () => {
       mockAnalyticsService.getSessionsList.mockResolvedValue([]);
 
-      const response = await request(app.getHttpServer())
-        .get('/analytics/sessions')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/analytics/sessions').expect(200);
 
       expect(response.body).toEqual([]);
     });
@@ -214,9 +204,7 @@ describe('AnalyticsController', () => {
 
       mockAnalyticsService.getExpertsList.mockResolvedValue(expertsData);
 
-      const response = await request(app.getHttpServer())
-        .get('/analytics/experts')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/analytics/experts').expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body[0]).toHaveProperty('expertId');
@@ -262,9 +250,7 @@ describe('AnalyticsController', () => {
 
       mockAnalyticsService.getComparisons.mockResolvedValue(comparisons);
 
-      const response = await request(app.getHttpServer())
-        .get('/analytics/comparisons')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/analytics/comparisons').expect(200);
 
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body[0]).toHaveProperty('expertCombination');
@@ -275,9 +261,7 @@ describe('AnalyticsController', () => {
     it('should return empty array when no sessions exist', async () => {
       mockAnalyticsService.getComparisons.mockResolvedValue([]);
 
-      const response = await request(app.getHttpServer())
-        .get('/analytics/comparisons')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/analytics/comparisons').expect(200);
 
       expect(response.body).toEqual([]);
     });

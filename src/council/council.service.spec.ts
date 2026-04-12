@@ -127,7 +127,10 @@ describe('CouncilService - Analytics Capture', () => {
       const llmResponse = makeLLMResponse('I think the answer is...');
 
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock)
@@ -163,7 +166,10 @@ describe('CouncilService - Analytics Capture', () => {
       const llmResponse = makeLLMResponse('My analysis...');
 
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock)
@@ -196,7 +202,10 @@ describe('CouncilService - Analytics Capture', () => {
         ...mockSession,
         maxMessages: 10,
       } as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock)
@@ -240,7 +249,10 @@ describe('CouncilService - Analytics Capture', () => {
       const llmResponse = makeLLMResponse('Response content');
 
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock)
@@ -276,7 +288,10 @@ describe('CouncilService - Analytics Capture', () => {
       const llmResponse = makeLLMResponse('Content', { model: 'gpt-4o' });
 
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock)
@@ -306,7 +321,10 @@ describe('CouncilService - Analytics Capture', () => {
       const llmResponse = makeLLMResponse('Content', { finishReason: 'length' });
 
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
       (mockDriver.chat as jest.Mock)
@@ -336,14 +354,18 @@ describe('CouncilService - Analytics Capture', () => {
   describe('intervention round number', () => {
     it('should include roundNumber when creating intervention messages', async () => {
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       // Queue an intervention before running the loop
       (councilService as any).interventionQueues.set(sessionId, [{ content: 'User intervention', userId: 'user-1' }]);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
-      (mockDriver.chat as jest.Mock)
-        .mockResolvedValueOnce(makeLLMResponse('I agree, consensus reached'));
+      (mockDriver.chat as jest.Mock).mockResolvedValueOnce(
+        makeLLMResponse('I agree, consensus reached'),
+      );
 
       messageService.create.mockResolvedValue({
         id: 'msg-1',

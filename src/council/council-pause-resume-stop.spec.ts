@@ -94,7 +94,10 @@ describe('CouncilService - Pause/Resume/Stop', () => {
   describe('pauseDiscussion', () => {
     it('should set session status to PAUSED and emit SESSION_PAUSED event', async () => {
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
 
@@ -107,7 +110,11 @@ describe('CouncilService - Pause/Resume/Stop', () => {
               councilService.stopDiscussion(sessionId);
             });
           }, 50);
-          return { content: 'Expert response', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
+          return {
+            content: 'Expert response',
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+          };
         }
         return { content: 'Should not reach', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
       });
@@ -162,7 +169,10 @@ describe('CouncilService - Pause/Resume/Stop', () => {
   describe('stopDiscussion', () => {
     it('should emit DISCUSSION_STOPPED immediately when stopped', async () => {
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
 
@@ -171,9 +181,17 @@ describe('CouncilService - Pause/Resume/Stop', () => {
         if (!stopTriggered) {
           stopTriggered = true;
           setTimeout(() => councilService.stopDiscussion(sessionId), 50);
-          return { content: 'Expert response', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
+          return {
+            content: 'Expert response',
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+          };
         }
-        return { content: 'Unreachable', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
+        return {
+          content: 'Unreachable',
+          finishReason: 'stop',
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        };
       });
 
       messageService.create.mockResolvedValue({
@@ -215,7 +233,11 @@ describe('CouncilService - Pause/Resume/Stop', () => {
       const pausedSession = { ...mockSession, status: SessionStatus.PAUSED };
       sessionService.findOne.mockResolvedValue(pausedSession as any);
 
-      const result = await councilService.queueIntervention(sessionId, 'User input while paused', 'user-1');
+      const result = await councilService.queueIntervention(
+        sessionId,
+        'User input while paused',
+        'user-1',
+      );
       expect(result).toBe(true);
     });
 
@@ -247,7 +269,10 @@ describe('CouncilService - Pause/Resume/Stop', () => {
   describe('waitWhilePaused (Promise-based)', () => {
     it('should resume the discussion loop when resumeDiscussion is called', async () => {
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
 
@@ -259,10 +284,18 @@ describe('CouncilService - Pause/Resume/Stop', () => {
             await councilService.pauseDiscussion(sessionId);
             setTimeout(() => councilService.resumeDiscussion(sessionId), 50);
           }, 50);
-          return { content: 'Turn 1', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
+          return {
+            content: 'Turn 1',
+            finishReason: 'stop',
+            usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+          };
         }
         setTimeout(() => councilService.stopDiscussion(sessionId), 50);
-        return { content: 'Turn 2 after resume', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
+        return {
+          content: 'Turn 2 after resume',
+          finishReason: 'stop',
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        };
       });
 
       let msgCount = 0;
@@ -296,7 +329,10 @@ describe('CouncilService - Pause/Resume/Stop', () => {
 
     it('should exit the discussion loop when stopDiscussion is called while paused', async () => {
       sessionService.findOne.mockResolvedValue(mockSession as any);
-      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+      sessionService.update.mockResolvedValue({
+        ...mockSession,
+        status: SessionStatus.ACTIVE,
+      } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
 
@@ -305,7 +341,11 @@ describe('CouncilService - Pause/Resume/Stop', () => {
           await councilService.pauseDiscussion(sessionId);
           setTimeout(() => councilService.stopDiscussion(sessionId), 50);
         }, 50);
-        return { content: 'Only turn', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 } };
+        return {
+          content: 'Only turn',
+          finishReason: 'stop',
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        };
       });
 
       messageService.create.mockResolvedValue({

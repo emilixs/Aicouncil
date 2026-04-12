@@ -234,10 +234,13 @@ export class DiscussionGateway
       this.server.to(roomName).emit('comparison-response', event);
     });
 
-    this.eventEmitter.on(COMPARISON_EVENTS.ALL_RESPONSES_RECEIVED, (event: ComparisonAllReceivedEvent) => {
-      const roomName = `session:${event.sessionId}`;
-      this.server.to(roomName).emit('comparison-complete', event);
-    });
+    this.eventEmitter.on(
+      COMPARISON_EVENTS.ALL_RESPONSES_RECEIVED,
+      (event: ComparisonAllReceivedEvent) => {
+        const roomName = `session:${event.sessionId}`;
+        this.server.to(roomName).emit('comparison-complete', event);
+      },
+    );
 
     this.eventEmitter.on(COMPARISON_EVENTS.COMPARISON_ERROR, (event: ComparisonErrorEvent) => {
       const roomName = `session:${event.sessionId}`;

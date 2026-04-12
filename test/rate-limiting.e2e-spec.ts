@@ -23,7 +23,8 @@ describe('Rate Limiting (e2e)', () => {
   beforeAll(async () => {
     // Set required env vars for test environment
     process.env.JWT_SECRET = 'test-secret-for-rate-limiting-e2e';
-    process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test';
+    process.env.DATABASE_URL =
+      process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test';
 
     const mockPrismaService = {
       $connect: jest.fn(),
@@ -31,7 +32,16 @@ describe('Rate Limiting (e2e)', () => {
       onModuleInit: jest.fn(),
       onModuleDestroy: jest.fn(),
       expert: {
-        create: jest.fn().mockResolvedValue({ id: 'mock-id', name: 'Test', specialty: 'Test', systemPrompt: 'test prompt here', driverType: 'ANTHROPIC', config: {}, createdAt: new Date(), updatedAt: new Date() }),
+        create: jest.fn().mockResolvedValue({
+          id: 'mock-id',
+          name: 'Test',
+          specialty: 'Test',
+          systemPrompt: 'test prompt here',
+          driverType: 'ANTHROPIC',
+          config: {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
         findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn().mockResolvedValue(null),
         findUniqueOrThrow: jest.fn().mockRejectedValue(new Error('Not found')),
@@ -40,7 +50,14 @@ describe('Rate Limiting (e2e)', () => {
         count: jest.fn().mockResolvedValue(0),
       },
       session: {
-        create: jest.fn().mockResolvedValue({ id: 'mock-session-id', problemStatement: 'test', status: 'PENDING', maxMessages: 20, createdAt: new Date(), updatedAt: new Date() }),
+        create: jest.fn().mockResolvedValue({
+          id: 'mock-session-id',
+          problemStatement: 'test',
+          status: 'PENDING',
+          maxMessages: 20,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
         findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn().mockResolvedValue(null),
         findUniqueOrThrow: jest.fn().mockRejectedValue(new Error('Not found')),
@@ -61,9 +78,7 @@ describe('Rate Limiting (e2e)', () => {
       .useValue(mockPrismaService)
       .compile();
 
-    app = moduleFixture.createNestApplication<NestFastifyApplication>(
-      new FastifyAdapter(),
-    );
+    app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
 
     app.useGlobalPipes(
       new ValidationPipe({
@@ -109,11 +124,7 @@ describe('Rate Limiting (e2e)', () => {
       // Use a fake session ID — the request may fail with 404, but
       // rate limiting should kick in before route handling on the 4th request
       const fakeSessionId = '00000000-0000-0000-0000-000000000001';
-      const responses = await makeRequests(
-        'POST',
-        `/sessions/${fakeSessionId}/start`,
-        4,
-      );
+      const responses = await makeRequests('POST', `/sessions/${fakeSessionId}/start`, 4);
 
       // First 3 requests should NOT be 429 (they may be 404 or other errors, but not rate-limited)
       for (let i = 0; i < 3; i++) {
@@ -126,11 +137,7 @@ describe('Rate Limiting (e2e)', () => {
 
     it('should include Retry-After header in 429 response', async () => {
       const fakeSessionId = '00000000-0000-0000-0000-000000000002';
-      const responses = await makeRequests(
-        'POST',
-        `/sessions/${fakeSessionId}/start`,
-        4,
-      );
+      const responses = await makeRequests('POST', `/sessions/${fakeSessionId}/start`, 4);
 
       const rateLimitedResponse = responses[3];
       expect(rateLimitedResponse.statusCode).toBe(HttpStatus.TOO_MANY_REQUESTS);
@@ -140,11 +147,7 @@ describe('Rate Limiting (e2e)', () => {
 
     it('should include retryAfter in 429 response body', async () => {
       const fakeSessionId = '00000000-0000-0000-0000-000000000003';
-      const responses = await makeRequests(
-        'POST',
-        `/sessions/${fakeSessionId}/start`,
-        4,
-      );
+      const responses = await makeRequests('POST', `/sessions/${fakeSessionId}/start`, 4);
 
       const rateLimitedResponse = responses[3];
       expect(rateLimitedResponse.statusCode).toBe(HttpStatus.TOO_MANY_REQUESTS);
@@ -216,8 +219,7 @@ describe('Rate Limiting (e2e)', () => {
       });
 
       expect(
-        response.headers['x-ratelimit-remaining'] ??
-          response.headers['X-RateLimit-Remaining'],
+        response.headers['x-ratelimit-remaining'] ?? response.headers['X-RateLimit-Remaining'],
       ).toBeDefined();
     });
 
@@ -237,11 +239,7 @@ describe('Rate Limiting (e2e)', () => {
     it('should return structured error body with statusCode, message, and retryAfter', async () => {
       // Exhaust the limit on a strict endpoint
       const fakeSessionId = '00000000-0000-0000-0000-000000000099';
-      const responses = await makeRequests(
-        'POST',
-        `/sessions/${fakeSessionId}/start`,
-        4,
-      );
+      const responses = await makeRequests('POST', `/sessions/${fakeSessionId}/start`, 4);
 
       const rateLimited = responses[3];
       expect(rateLimited.statusCode).toBe(HttpStatus.TOO_MANY_REQUESTS);
