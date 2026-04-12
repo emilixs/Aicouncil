@@ -9,10 +9,16 @@ import { LLMDriver } from '../llm/interfaces/llm-driver.interface';
 import { LLMConfig } from '../llm/dto';
 import { ConsensusEvaluationResult } from './dto/consensus-evaluation.dto';
 import { DISCUSSION_EVENTS } from '../council/events/discussion.events';
+import { DiscussionSummary } from './dto/discussion-outcome.dto';
 import {
   buildConsensusEvaluatorPrompt,
   buildConsensusEvaluatorMessages,
 } from './prompts/consensus-evaluator.prompt';
+import {
+  buildSummaryGeneratorPrompt,
+  buildSummaryMessages,
+  buildChunkSummaryPrompt,
+} from './prompts/summary-generator.prompt';
 
 @Injectable()
 export class ConsensusService {
@@ -190,6 +196,139 @@ export class ConsensusService {
       return response.content;
     } catch {
       return text.substring(0, 4000);
+    }
+  }
+
+  async generateSummary(
+    sessionId: string,
+    session: { problemStatement: string },
+    experts: Array<{ id: string; name: string; specialty: string }>,
+    endReason: string,
+    finalEvaluation?: ConsensusEvaluationResult,
+  ): Promise<DiscussionSummary | null> {
+    try {
+      const allMessages = await this.messageService.findBySession(sessionId);
+
+      if (allMessages.length === 0) {
+        return null;
+      }
+
+      const formattedMessages = allMessages.map((m: any) => ({
+        expertName: m.expertName ?? 'Unknown',
+        content: m.content,
+        role: m.role,
+      }));
+
+      let transcript: string;
+      if (allMessages.length > 50) {
+        transcript = await this.twoPassSummarize(formattedMessages);
+      } else {
+        transcript = buildSummaryMessages(formattedMessages);
+      }
+
+      const systemPrompt = buildSummaryGeneratorPrompt(
+        session.problemStatement,
+        experts,
+        endReason,
+      );
+
+      const driver = this.getEvaluatorDriver();
+      const config = { model: this.getEvaluatorModel() } as LLMConfig;
+      const response = await driver.chat(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: transcript },
+        ],
+        config,
+      );
+
+      const summary = this.parseSummaryJson(response.content);
+      if (!summary) {
+        this.logger.warn(`Summary generation returned malformed JSON for session ${sessionId}`);
+        return null;
+      }
+
+      const outcome = await this.prisma.discussionOutcome.create({
+        data: {
+          sessionId,
+          executiveSummary: summary.executiveSummary,
+          decisions: summary.decisions,
+          actionItems: summary.actionItems,
+          keyArguments: summary.keyArguments,
+          openQuestions: summary.openQuestions,
+          finalEvaluation: finalEvaluation ? JSON.parse(JSON.stringify(finalEvaluation)) : undefined,
+          generatedBy: this.getEvaluatorModel(),
+        },
+      });
+
+      this.eventEmitter.emit(DISCUSSION_EVENTS.DISCUSSION_SUMMARY, {
+        sessionId,
+        outcome,
+      });
+
+      return summary;
+    } catch (error) {
+      this.logger.error(
+        `Error generating summary for session ${sessionId}: ${error.message}`,
+        error.stack,
+      );
+      return null;
+    }
+  }
+
+  private async twoPassSummarize(
+    messages: Array<{ expertName: string; content: string; role: string }>,
+  ): Promise<string> {
+    const chunkSize = 20;
+    const chunks: Array<Array<{ expertName: string; content: string; role: string }>> = [];
+
+    for (let i = 0; i < messages.length; i += chunkSize) {
+      chunks.push(messages.slice(i, i + chunkSize));
+    }
+
+    const chunkSummaries: string[] = [];
+    const driver = this.getEvaluatorDriver();
+    const config = { model: this.getEvaluatorModel() } as LLMConfig;
+
+    for (const chunk of chunks) {
+      const chunkText = chunk
+        .map((m) => `[${m.expertName}]: ${m.content}`)
+        .join('\n\n');
+
+      const response = await driver.chat(
+        [
+          { role: 'system', content: buildChunkSummaryPrompt() },
+          { role: 'user', content: chunkText },
+        ],
+        config,
+      );
+
+      chunkSummaries.push(response.content);
+    }
+
+    return '## Discussion Summary (condensed)\n\n' + chunkSummaries.join('\n\n---\n\n');
+  }
+
+  private parseSummaryJson(content: string): DiscussionSummary | null {
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return null;
+
+      const parsed = JSON.parse(jsonMatch[0]);
+
+      if (
+        typeof parsed.executiveSummary !== 'string' ||
+        !Array.isArray(parsed.decisions) ||
+        !Array.isArray(parsed.actionItems) ||
+        !Array.isArray(parsed.keyArguments) ||
+        !Array.isArray(parsed.openQuestions)
+      ) {
+        return null;
+      }
+
+      return parsed as DiscussionSummary;
+    } catch {
+      return null;
     }
   }
 

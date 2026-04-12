@@ -138,4 +138,98 @@ describe('ConsensusService', () => {
       expect(result.progressAssessment).toBe('stalled');
     });
   });
+
+  describe('generateSummary', () => {
+    const sessionId = 'session-1';
+    const session = { problemStatement: 'How should we design the API?' };
+    const experts = [
+      { id: 'e1', name: 'Alice', specialty: 'Backend' },
+      { id: 'e2', name: 'Bob', specialty: 'Frontend' },
+    ];
+
+    it('should generate and store a discussion summary', async () => {
+      const summaryJson = {
+        executiveSummary: 'Experts agreed on REST API design.',
+        decisions: ['Use REST', 'JWT for auth'],
+        actionItems: [{ description: 'Draft API spec', priority: 'high', suggestedOwner: 'Alice' }],
+        keyArguments: [
+          { expertName: 'Alice', position: 'REST is simpler' },
+          { expertName: 'Bob', position: 'Agreed, REST works for frontend' },
+        ],
+        openQuestions: [],
+      };
+
+      messageService.findBySession.mockResolvedValue([
+        { expertName: 'Alice', content: 'I propose REST.', role: 'ASSISTANT' },
+        { expertName: 'Bob', content: 'Agreed.', role: 'ASSISTANT' },
+      ] as any);
+
+      mockDriver.chat.mockResolvedValue({
+        content: JSON.stringify(summaryJson),
+        model: 'claude-sonnet-4-20250514',
+        finishReason: 'stop',
+      });
+
+      prisma.discussionOutcome.create.mockResolvedValue({
+        id: 'outcome-1',
+        sessionId,
+        ...summaryJson,
+        finalEvaluation: null,
+        generatedAt: new Date(),
+        generatedBy: 'claude-sonnet-4-20250514',
+      } as any);
+
+      const result = await service.generateSummary(
+        sessionId,
+        session as any,
+        experts as any,
+        'consensus',
+      );
+
+      expect(result!.executiveSummary).toBe('Experts agreed on REST API design.');
+      expect(result!.decisions).toHaveLength(2);
+      expect(prisma.discussionOutcome.create).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'discussion.summary',
+        expect.objectContaining({ sessionId }),
+      );
+    });
+
+    it('should use two-pass summarization for long discussions', async () => {
+      const manyMessages = Array.from({ length: 60 }, (_, i) => ({
+        expertName: i % 2 === 0 ? 'Alice' : 'Bob',
+        content: `Message ${i} with substantial content that contributes to length.`,
+        role: 'ASSISTANT',
+      }));
+
+      messageService.findBySession.mockResolvedValue(manyMessages as any);
+
+      const summaryJson = {
+        executiveSummary: 'Long discussion summary.',
+        decisions: ['Decision 1'],
+        actionItems: [],
+        keyArguments: [{ expertName: 'Alice', position: 'Position A' }],
+        openQuestions: ['Question 1'],
+      };
+
+      mockDriver.chat.mockResolvedValue({
+        content: JSON.stringify(summaryJson),
+        model: 'claude-sonnet-4-20250514',
+        finishReason: 'stop',
+      });
+
+      prisma.discussionOutcome.create.mockResolvedValue({
+        id: 'outcome-2',
+        sessionId,
+        ...summaryJson,
+        finalEvaluation: null,
+        generatedAt: new Date(),
+        generatedBy: 'claude-sonnet-4-20250514',
+      } as any);
+
+      await service.generateSummary(sessionId, session as any, experts as any, 'max_messages');
+
+      expect(mockDriver.chat.mock.calls.length).toBeGreaterThanOrEqual(4);
+    });
+  });
 });
