@@ -394,23 +394,30 @@ describe('CouncilService - Analytics Capture', () => {
 
   describe('startDiscussion (async fire-and-forget)', () => {
     it('should return immediately without waiting for the loop to finish', async () => {
+      jest.useFakeTimers();
+
       sessionService.findOne.mockResolvedValue(mockSession as any);
       sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
 
       const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
-      // Make chat take a long time — startDiscussion should return before it resolves
       (mockDriver.chat as jest.Mock).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve(makeLLMResponse('I agree, consensus reached')), 5000)),
       );
 
       messageService.countBySession.mockResolvedValue(0);
+      messageService.create.mockResolvedValue({
+        id: 'msg-1', sessionId, content: 'I agree, consensus reached',
+        role: MessageRole.ASSISTANT, expertId: 'expert-1',
+        isIntervention: false, timestamp: new Date(),
+      } as any);
 
-      const start = Date.now();
       const result = await councilService.startDiscussion(sessionId);
-      const elapsed = Date.now() - start;
-
-      expect(elapsed).toBeLessThan(1000);
       expect(result).toBeDefined();
+
+      // Drain the background loop so no timers leak
+      await jest.advanceTimersByTimeAsync(10000);
+
+      jest.useRealTimers();
     });
   });
 });
