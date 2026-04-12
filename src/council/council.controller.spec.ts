@@ -47,6 +47,9 @@ describe('CouncilController', () => {
           provide: CouncilService,
           useValue: {
             startDiscussion: jest.fn(),
+            pauseDiscussion: jest.fn(),
+            resumeDiscussion: jest.fn(),
+            stopDiscussion: jest.fn(),
           },
         },
         {
@@ -80,16 +83,17 @@ describe('CouncilController', () => {
       sessionService.findOne.mockResolvedValue(session);
 
       const returnedSession = makeSession({
-        status: SessionStatus.COMPLETED,
-        statusDisplay: 'concluded',
+        status: SessionStatus.ACTIVE,
+        statusDisplay: 'active',
         type: 'DISCUSSION',
       });
       councilService.startDiscussion.mockResolvedValue(returnedSession);
 
-      await controller.startDiscussion(sessionId);
+      const result = await controller.startDiscussion(sessionId);
 
       expect(councilService.startDiscussion).toHaveBeenCalledWith(sessionId);
       expect(comparisonService.startComparison).not.toHaveBeenCalled();
+      expect(result.status).toBe(SessionStatus.ACTIVE);
     });
 
     it('should call ComparisonService.startComparison for COMPARISON type sessions', async () => {
@@ -104,13 +108,12 @@ describe('CouncilController', () => {
     });
 
     it('should default to DISCUSSION when session has no type field', async () => {
-      // Legacy sessions created before the type field was added
-      const session = makeSession(); // no type field
+      const session = makeSession();
       sessionService.findOne.mockResolvedValue(session);
 
       const returnedSession = makeSession({
-        status: SessionStatus.COMPLETED,
-        statusDisplay: 'concluded',
+        status: SessionStatus.ACTIVE,
+        statusDisplay: 'active',
       });
       councilService.startDiscussion.mockResolvedValue(returnedSession);
 
@@ -118,6 +121,48 @@ describe('CouncilController', () => {
 
       expect(councilService.startDiscussion).toHaveBeenCalledWith(sessionId);
       expect(comparisonService.startComparison).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /sessions/:id/pause', () => {
+    it('should call councilService.pauseDiscussion and return session', async () => {
+      councilService.pauseDiscussion.mockResolvedValue(undefined);
+      const pausedSession = makeSession({ status: SessionStatus.PAUSED });
+      sessionService.findOne.mockResolvedValue(pausedSession);
+
+      const result = await controller.pauseDiscussion(sessionId);
+
+      expect(councilService.pauseDiscussion).toHaveBeenCalledWith(sessionId);
+      expect(sessionService.findOne).toHaveBeenCalledWith(sessionId);
+      expect(result.status).toBe(SessionStatus.PAUSED);
+    });
+  });
+
+  describe('POST /sessions/:id/resume', () => {
+    it('should call councilService.resumeDiscussion and return session', async () => {
+      councilService.resumeDiscussion.mockResolvedValue(undefined);
+      const activeSession = makeSession({ status: SessionStatus.ACTIVE });
+      sessionService.findOne.mockResolvedValue(activeSession);
+
+      const result = await controller.resumeDiscussion(sessionId);
+
+      expect(councilService.resumeDiscussion).toHaveBeenCalledWith(sessionId);
+      expect(sessionService.findOne).toHaveBeenCalledWith(sessionId);
+      expect(result.status).toBe(SessionStatus.ACTIVE);
+    });
+  });
+
+  describe('POST /sessions/:id/stop', () => {
+    it('should call councilService.stopDiscussion and return session', async () => {
+      councilService.stopDiscussion.mockResolvedValue(undefined);
+      const cancelledSession = makeSession({ status: SessionStatus.CANCELLED });
+      sessionService.findOne.mockResolvedValue(cancelledSession);
+
+      const result = await controller.stopDiscussion(sessionId);
+
+      expect(councilService.stopDiscussion).toHaveBeenCalledWith(sessionId);
+      expect(sessionService.findOne).toHaveBeenCalledWith(sessionId);
+      expect(result.status).toBe(SessionStatus.CANCELLED);
     });
   });
 });

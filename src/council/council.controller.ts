@@ -15,7 +15,7 @@ export class CouncilController {
 
   @Post(':id/start')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.ACCEPTED)
   async startDiscussion(@Param('id') id: string): Promise<SessionResponseDto> {
     const session = await this.sessionService.findOne(id);
 
@@ -25,5 +25,26 @@ export class CouncilController {
     }
 
     return this.councilService.startDiscussion(id);
+  }
+
+  @Post(':id/pause')
+  @HttpCode(HttpStatus.OK)
+  async pauseDiscussion(@Param('id') id: string): Promise<SessionResponseDto> {
+    await this.councilService.pauseDiscussion(id);
+    return this.sessionService.findOne(id);
+  }
+
+  @Post(':id/resume')
+  @HttpCode(HttpStatus.OK)
+  async resumeDiscussion(@Param('id') id: string): Promise<SessionResponseDto> {
+    await this.councilService.resumeDiscussion(id);
+    return this.sessionService.findOne(id);
+  }
+
+  @Post(':id/stop')
+  @HttpCode(HttpStatus.OK)
+  async stopDiscussion(@Param('id') id: string): Promise<SessionResponseDto> {
+    await this.councilService.stopDiscussion(id);
+    return this.sessionService.findOne(id);
   }
 }

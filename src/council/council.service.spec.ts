@@ -123,6 +123,10 @@ describe('CouncilService - Analytics Capture', () => {
     }).compile();
 
     councilService = module.get<CouncilService>(CouncilService);
+
+    // Initialize control state (normally done by startDiscussion)
+    (councilService as any).interventionQueues.set(sessionId, []);
+    (councilService as any).sessionControlFlags.set(sessionId, 'running');
   });
 
   describe('token usage capture', () => {
@@ -151,7 +155,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       // The test expects that messageService.create is called with analytics fields
       // This will FAIL because council.service.ts currently discards LLMResponse usage data
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await councilService.runDiscussionLoop(sessionId, mockSession as any, mockSession.experts.map((e: any) => e.expert)).catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -187,7 +191,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await councilService.runDiscussionLoop(sessionId, mockSession as any, mockSession.experts.map((e: any) => e.expert)).catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -226,7 +230,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockImplementation(async () => msgCount);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await councilService.runDiscussionLoop(sessionId, mockSession as any, mockSession.experts.map((e: any) => e.expert)).catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
 
@@ -267,7 +271,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await councilService.runDiscussionLoop(sessionId, mockSession as any, mockSession.experts.map((e: any) => e.expert)).catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -303,7 +307,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await councilService.runDiscussionLoop(sessionId, mockSession as any, mockSession.experts.map((e: any) => e.expert)).catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -333,7 +337,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await councilService.runDiscussionLoop(sessionId, mockSession as any, mockSession.experts.map((e: any) => e.expert)).catch(() => {});
 
       const createCalls = messageService.create.mock.calls;
       expect(createCalls.length).toBeGreaterThan(0);
@@ -366,7 +370,7 @@ describe('CouncilService - Analytics Capture', () => {
 
       messageService.countBySession.mockResolvedValue(0);
 
-      await councilService.startDiscussion(sessionId).catch(() => {});
+      await councilService.runDiscussionLoop(sessionId, mockSession as any, mockSession.experts.map((e: any) => e.expert)).catch(() => {});
 
       // Find the intervention message creation call
       const interventionCall = messageService.create.mock.calls.find(
