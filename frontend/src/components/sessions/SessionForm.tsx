@@ -241,7 +241,7 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
                     {...field}
                     onChange={(e) => {
                       const value = e.target.value;
-                      field.onChange(value === "" ? undefined : value);
+                      field.onChange(value === "" ? undefined : Number(value));
                     }}
                     value={field.value ?? ""}
                   />
