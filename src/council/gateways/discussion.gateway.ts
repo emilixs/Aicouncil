@@ -183,7 +183,7 @@ export class DiscussionGateway
     this.eventEmitter.on(DISCUSSION_EVENTS.CONSENSUS_REACHED, (event: DiscussionConsensusEvent) => {
       const roomName = `session:${event.sessionId}`;
       this.server.to(roomName).emit('consensus-reached', {
-        finalMessage: event.finalMessage,
+        consensus: event.finalMessage?.content ?? 'The experts have reached consensus.',
       });
     });
 
@@ -199,7 +199,7 @@ export class DiscussionGateway
     this.eventEmitter.on(DISCUSSION_EVENTS.ERROR, (event: DiscussionErrorEvent) => {
       const roomName = `session:${event.sessionId}`;
       this.server.to(roomName).emit('error', {
-        error: event.error,
+        message: event.error,
         expertId: event.expertId,
       });
     });
@@ -323,7 +323,7 @@ export class DiscussionGateway
       // Validate sessionId matches client session
       if (sessionId !== userSessionId) {
         client.emit('error', {
-          error: 'Session ID mismatch',
+          message: 'Session ID mismatch',
         });
         return;
       }
@@ -333,29 +333,27 @@ export class DiscussionGateway
       const roomName = `session:${sessionId}`;
 
       if (session.type === 'COMPARISON') {
-        // Start comparison in background (no await)
         this.comparisonService.startComparison(sessionId).catch((error) => {
-          console.error('Error starting comparison:', error);
+          this.logger.error('Error starting comparison:', error);
           this.server.to(roomName).emit('error', {
-            error: error.message || 'Failed to start comparison',
+            message: error.message || 'Failed to start comparison',
           });
         });
       } else {
-        // Start discussion in background (no await)
-        this.councilService.startDiscussion(sessionId).catch((error) => {
-          console.error('Error starting discussion:', error);
+        try {
+          await this.councilService.startDiscussion(sessionId);
+          this.server.to(roomName).emit('discussion-started', { sessionId });
+        } catch (error) {
+          this.logger.error('Error starting discussion:', error);
           this.server.to(roomName).emit('error', {
-            error: error.message || 'Failed to start discussion',
+            message: error.message || 'Failed to start discussion',
           });
-        });
-
-        // Emit discussion-started to room
-        this.server.to(roomName).emit('discussion-started', { sessionId });
+        }
       }
     } catch (error) {
       this.logger.error('Error in handleStartDiscussion', error);
       client.emit('error', {
-        error: error.message || 'Failed to start discussion',
+        message: error.message || 'Failed to start discussion',
       });
     }
   }
@@ -368,7 +366,7 @@ export class DiscussionGateway
   ) {
     try {
       if (!client.data.user) {
-        client.emit('error', { error: 'Unauthorized' });
+        client.emit('error', { message: 'Unauthorized' });
         return;
       }
 
@@ -378,7 +376,7 @@ export class DiscussionGateway
       // Validate sessionId matches client session
       if (sessionId !== userSessionId) {
         client.emit('error', {
-          error: 'Session ID mismatch',
+          message: 'Session ID mismatch',
         });
         return;
       }
@@ -386,7 +384,7 @@ export class DiscussionGateway
       // Validate content
       if (!content || typeof content !== 'string' || content.trim().length === 0) {
         client.emit('error', {
-          error: 'Invalid intervention content',
+          message: 'Invalid intervention content',
         });
         return;
       }
@@ -395,9 +393,8 @@ export class DiscussionGateway
       const queued = await this.councilService.queueIntervention(sessionId, content, userId);
 
       if (!queued) {
-        // Intervention was rejected (session not ACTIVE or failure)
         client.emit('error', {
-          error: 'Intervention rejected: session not ACTIVE or failed to queue',
+          message: 'Intervention rejected: session not ACTIVE or failed to queue',
         });
         return;
       }
@@ -407,7 +404,7 @@ export class DiscussionGateway
     } catch (error) {
       this.logger.error('Error in handleIntervention', error);
       client.emit('error', {
-        error: error.message || 'Failed to queue intervention',
+        message: error.message || 'Failed to queue intervention',
       });
     }
   }
@@ -423,7 +420,7 @@ export class DiscussionGateway
       const userSessionId = client.data.user?.sessionId;
 
       if (sessionId !== userSessionId) {
-        client.emit('error', { error: 'Session ID mismatch' });
+        client.emit('error', { message: 'Session ID mismatch' });
         return;
       }
 
@@ -431,7 +428,7 @@ export class DiscussionGateway
     } catch (error) {
       this.logger.error('Error in handlePauseDiscussion', error);
       client.emit('error', {
-        error: error.message || 'Failed to pause discussion',
+        message: error.message || 'Failed to pause discussion',
       });
     }
   }
@@ -447,7 +444,7 @@ export class DiscussionGateway
       const userSessionId = client.data.user?.sessionId;
 
       if (sessionId !== userSessionId) {
-        client.emit('error', { error: 'Session ID mismatch' });
+        client.emit('error', { message: 'Session ID mismatch' });
         return;
       }
 
@@ -455,7 +452,7 @@ export class DiscussionGateway
     } catch (error) {
       this.logger.error('Error in handleResumeDiscussion', error);
       client.emit('error', {
-        error: error.message || 'Failed to resume discussion',
+        message: error.message || 'Failed to resume discussion',
       });
     }
   }
@@ -471,7 +468,7 @@ export class DiscussionGateway
       const userSessionId = client.data.user?.sessionId;
 
       if (sessionId !== userSessionId) {
-        client.emit('error', { error: 'Session ID mismatch' });
+        client.emit('error', { message: 'Session ID mismatch' });
         return;
       }
 
@@ -479,7 +476,7 @@ export class DiscussionGateway
     } catch (error) {
       this.logger.error('Error in handleStopDiscussion', error);
       client.emit('error', {
-        error: error.message || 'Failed to stop discussion',
+        message: error.message || 'Failed to stop discussion',
       });
     }
   }
@@ -497,7 +494,7 @@ export class DiscussionGateway
       // Validate sessionId matches client session
       if (sessionId !== userSessionId) {
         client.emit('error', {
-          error: 'Session ID mismatch',
+          message: 'Session ID mismatch',
         });
         return;
       }
@@ -515,12 +512,11 @@ export class DiscussionGateway
         subscriptions.add(client.id);
       }
 
-      // Emit joined-session acknowledgment to client
       client.emit('joined-session', { sessionId });
     } catch (error) {
       this.logger.error('Error in handleJoinSession', error);
       client.emit('error', {
-        error: error.message || 'Failed to join session',
+        message: error.message || 'Failed to join session',
       });
     }
   }
@@ -537,16 +533,14 @@ export class DiscussionGateway
       // Validate sessionId matches client session
       if (sessionId !== userSessionId) {
         client.emit('error', {
-          error: 'Session ID mismatch',
+          message: 'Session ID mismatch',
         });
         return;
       }
 
-      // Leave room
       const roomName = `session:${sessionId}`;
       client.leave(roomName);
 
-      // Remove from tracking
       const subscribers = this.sessionSubscriptions.get(sessionId);
       if (subscribers) {
         subscribers.delete(client.id);
@@ -555,12 +549,11 @@ export class DiscussionGateway
         }
       }
 
-      // Emit left-session to client
       client.emit('left-session', { sessionId });
     } catch (error) {
       this.logger.error('Error in handleLeaveSession', error);
       client.emit('error', {
-        error: error.message || 'Failed to leave session',
+        message: error.message || 'Failed to leave session',
       });
     }
   }
