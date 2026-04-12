@@ -12,6 +12,12 @@ export const DISCUSSION_EVENTS = {
   DISCUSSION_STOPPED: 'discussion.stopped',
   ERROR: 'discussion.error',
   EXPERT_TURN_START: 'discussion.expert.turn.start',
+  CONSENSUS_EVALUATION: 'discussion.consensus.evaluation',
+  DISCUSSION_SUMMARY: 'discussion.summary',
+  DISCUSSION_STALLED: 'discussion.stalled',
+  POLL_CREATED: 'discussion.poll.created',
+  POLL_VOTE: 'discussion.poll.vote',
+  POLL_CLOSED: 'discussion.poll.closed',
 } as const;
 
 /**
@@ -37,7 +43,7 @@ export interface DiscussionConsensusEvent {
 export interface DiscussionEndedEvent {
   sessionId: string;
   consensusReached: boolean;
-  reason: 'consensus' | 'max_messages' | 'cancelled';
+  reason: 'consensus' | 'max_messages' | 'cancelled' | 'stalled';
   messageCount: number;
 }
 
@@ -79,4 +85,59 @@ export interface DiscussionResumedEvent {
  */
 export interface DiscussionStoppedEvent {
   sessionId: string;
+}
+
+export interface ConsensusEvaluationEvent {
+  sessionId: string;
+  evaluation: {
+    id: string;
+    convergenceScore: number;
+    consensusReached: boolean;
+    areasOfAgreement: string[];
+    areasOfDisagreement: string[];
+    progressAssessment: string;
+    reasoning: string;
+  };
+}
+
+export interface DiscussionSummaryEvent {
+  sessionId: string;
+  outcome: {
+    id: string;
+    executiveSummary: string;
+    decisions: string[];
+    actionItems: any[];
+    keyArguments: any[];
+    openQuestions: string[];
+  };
+}
+
+export interface DiscussionStalledEvent {
+  sessionId: string;
+  stalledRounds: number;
+}
+
+export interface PollCreatedEvent {
+  sessionId: string;
+  pollId: string;
+  proposal: string;
+}
+
+export interface PollVoteEvent {
+  sessionId: string;
+  pollId: string;
+  expertId: string;
+  expertName: string;
+  vote: string;
+  reasoning: string;
+}
+
+export interface PollClosedEvent {
+  sessionId: string;
+  pollId: string;
+  results: {
+    agree: number;
+    disagree: number;
+    agreeWithReservations: number;
+  };
 }
