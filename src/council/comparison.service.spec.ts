@@ -26,7 +26,7 @@ describe('ComparisonService', () => {
     specialty: 'Backend',
     systemPrompt: 'You are a backend expert.',
     driverType: DriverType.OPENAI,
-    config: { model: 'gpt-4' },
+    config: { model: 'gpt-5.4-mini' },
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -48,7 +48,7 @@ describe('ComparisonService', () => {
     specialty: 'DevOps',
     systemPrompt: 'You are a devops expert.',
     driverType: DriverType.GROK,
-    config: { model: 'grok-2' },
+    config: { model: 'grok-4.20-0309-reasoning' },
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -74,7 +74,7 @@ describe('ComparisonService', () => {
     content: 'This is my expert response.',
     finishReason: 'stop' as const,
     usage: { promptTokens: 100, completionTokens: 200, totalTokens: 300 },
-    model: 'gpt-4',
+    model: 'gpt-5.4-mini',
     ...overrides,
   });
 
@@ -138,7 +138,7 @@ describe('ComparisonService', () => {
 
       const responseA = makeLLMResponse({
         content: 'Response from Expert A',
-        model: 'gpt-4',
+        model: 'gpt-5.4-mini',
         usage: { promptTokens: 50, completionTokens: 100, totalTokens: 150 },
       });
       const responseB = makeLLMResponse({
@@ -200,7 +200,7 @@ describe('ComparisonService', () => {
 
       // Verify first call has Expert A's metrics
       expect((createCalls[0][0] as any).tokenCount).toBe(150);
-      expect((createCalls[0][0] as any).modelUsed).toBe('gpt-4');
+      expect((createCalls[0][0] as any).modelUsed).toBe('gpt-5.4-mini');
 
       // Verify second call has Expert B's metrics
       expect((createCalls[1][0] as any).tokenCount).toBe(180);
@@ -227,8 +227,8 @@ describe('ComparisonService', () => {
       sessionService.findOne.mockResolvedValue(session);
       sessionService.update.mockResolvedValue(session);
 
-      const responseA = makeLLMResponse({ content: 'Response A', model: 'gpt-4' });
-      const responseC = makeLLMResponse({ content: 'Response C', model: 'grok-2' });
+      const responseA = makeLLMResponse({ content: 'Response A', model: 'gpt-5.4-mini' });
+      const responseC = makeLLMResponse({ content: 'Response C', model: 'grok-4.20-0309-reasoning' });
 
       const driverA = { chat: jest.fn().mockResolvedValue(responseA), streamChat: jest.fn() };
       const driverB = {
@@ -350,7 +350,7 @@ describe('ComparisonService', () => {
 
       const response = makeLLMResponse({
         content: 'Expert analysis here.',
-        model: 'gpt-4-turbo',
+        model: 'gpt-5.4',
         usage: { promptTokens: 200, completionTokens: 400, totalTokens: 600 },
       });
 
@@ -385,7 +385,7 @@ describe('ComparisonService', () => {
         // durationMs should be a positive number (at least ~50ms from our mock delay)
         expect(dto.durationMs).toBeGreaterThanOrEqual(40); // allow some margin
         expect(dto.tokenCount).toBe(600);
-        expect(dto.modelUsed).toBe('gpt-4-turbo');
+        expect(dto.modelUsed).toBe('gpt-5.4');
       }
     });
 

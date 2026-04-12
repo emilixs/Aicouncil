@@ -103,7 +103,7 @@ All database schema changes must be made in `prisma/schema.prisma`. Follow this 
 The system supports multiple LLM providers through an extensible driver architecture. Currently supported providers include:
 
 - **OpenAI**: GPT models (GPT-4.1 family, reasoning models, GPT-4o family, and legacy models)
-- **Anthropic**: Claude models (Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Sonnet, Claude 3 Haiku)
+- **Anthropic**: Claude models (Claude Sonnet 4.6, Claude Opus 4.6, Claude Haiku 4.5)
 - **xAI (Grok)**: Grok models with large context windows and strong reasoning capabilities
 
 All drivers implement a common interface for both streaming and non-streaming chat completions. The system uses async generators for streaming, enabling real-time WebSocket integration in future phases.
@@ -118,7 +118,7 @@ API keys are configured via environment variables (see `.env.example`). Each exp
 **Example OpenAI configuration:**
 ```json
 {
-  "model": "gpt-4-turbo",
+  "model": "gpt-5.4",
   "temperature": 0.7,
   "maxTokens": 2000,
   "topP": 1.0
@@ -128,7 +128,7 @@ API keys are configured via environment variables (see `.env.example`). Each exp
 **Example Anthropic configuration:**
 ```json
 {
-  "model": "claude-3-5-sonnet-20241022",
+  "model": "claude-sonnet-4-6",
   "temperature": 0.7,
   "maxTokens": 2000,
   "topP": 1.0
@@ -138,7 +138,7 @@ API keys are configured via environment variables (see `.env.example`). Each exp
 **Example Grok configuration:**
 ```json
 {
-  "model": "grok-4-latest",
+  "model": "grok-4.20-0309-reasoning",
   "temperature": 0.7,
   "maxTokens": 2000,
   "topP": 1.0
@@ -180,22 +180,19 @@ Non-retryable errors (401, 400) fail immediately with descriptive exceptions.
 - Reasoning models: `o3`, `o3-mini`, `o3-pro`, `o4-mini`
 - GPT-4o family: `gpt-4o`, `gpt-4o-mini`
 - Realtime models: `gpt-realtime`, `gpt-realtime-mini`
-- Legacy models: `gpt-4`, `gpt-4-turbo`, `gpt-3.5-turbo`
+- GPT-5.4 family: `gpt-5.4`, `gpt-5.4-pro`, `gpt-5.4-mini`, `gpt-5.4-nano`
+- GPT-5 family: `gpt-5`, `gpt-5-mini`, `gpt-5-nano`
 
 **Anthropic models:**
-- `claude-3-5-sonnet-20241022`
-- `claude-3-opus-20240229`
-- `claude-3-sonnet-20240229`
-- `claude-3-haiku-20240307`
+- Claude 4.6: `claude-opus-4-6`, `claude-sonnet-4-6`
+- Claude 4.5: `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5`
+- Claude 4.0: `claude-opus-4-0`, `claude-sonnet-4-0`
 
 **xAI Grok models:**
-- Flagship: `grok-4-latest`, `grok-4-0709`
-- Fast reasoning: `grok-4-fast-reasoning`, `grok-4-fast-reasoning-latest`
-- Fast non-reasoning: `grok-4-fast-non-reasoning`, `grok-4-fast-non-reasoning-latest`
-- Previous generation: `grok-3`, `grok-3-mini`
-- Specialized: `grok-code-fast-1`, `grok-2-vision-1212`
+- Grok 4.20: `grok-4.20-0309-reasoning`, `grok-4.20-0309-non-reasoning`, `grok-4.20-multi-agent-0309`
+- Grok 4.1 Fast: `grok-4-1-fast-reasoning`, `grok-4-1-fast-non-reasoning`
 
-**Note:** Model availability updated as of October 2025. Check provider documentation for latest releases and deprecations.
+**Note:** Model availability updated as of April 2026. Check provider documentation for latest releases and deprecations.
 
 ### Adding New Providers
 
@@ -281,13 +278,13 @@ Choose the right model for your use case:
 - **GPT-4.1 family**: Best for general-purpose tasks with improved cost-efficiency compared to GPT-4o
 - **o3/o4 reasoning models**: Ideal for complex reasoning, math, coding problems requiring deep analysis
 - **GPT-4o**: Multimodal capabilities with strong general performance across diverse tasks
-- **Claude 3.5 Sonnet**: Excellent for analysis, writing, coding with large context windows (200k tokens)
+- **Claude Sonnet 4.6**: Excellent for analysis, writing, coding with large context windows (200k tokens)
 - **Grok 4**: Strong reasoning with very large context (256k-2M tokens), cost-effective fast variants available
-- **Grok 3 Mini**: Budget-friendly option with strong math and reasoning capabilities
+- **Grok 4.1 Fast**: Budget-friendly option with strong math and reasoning capabilities
 
 For **Council discussions**, use more capable models for better reasoning and consensus:
-- Recommended: `gpt-4-turbo`, `gpt-4.1`, `o3-mini`, `claude-3-5-sonnet-20241022`, `grok-4-latest`
-- Not recommended: `gpt-3.5-turbo`, `claude-3-haiku-20240307` (optimized for speed over reasoning depth)
+- Recommended: `gpt-5.4`, `gpt-4.1`, `o3-mini`, `claude-sonnet-4-6`, `grok-4.20-0309-reasoning`
+- Not recommended: `gpt-4.1-nano`, `claude-haiku-4-5` (optimized for speed over reasoning depth)
 
 ## Frontend Application
 
@@ -1110,12 +1107,12 @@ Set appropriate limits based on problem complexity:
 Use **more capable models** for better reasoning and consensus:
 
 **Recommended for Council Discussions:**
-- OpenAI: `gpt-4`, `gpt-4-turbo`
-- Anthropic: `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229`
+- OpenAI: `gpt-5.4-mini`, `gpt-5.4`
+- Anthropic: `claude-sonnet-4-6`, `claude-opus-4-6`
 
 **Not Recommended:**
-- `gpt-3.5-turbo`: May struggle with complex reasoning and consensus
-- `claude-3-haiku-20240307`: Optimized for speed over reasoning depth
+- `gpt-4.1-nano`: May struggle with complex reasoning and consensus
+- `claude-haiku-4-5`: Optimized for speed over reasoning depth
 
 #### Temperature Settings
 
@@ -1127,7 +1124,7 @@ Adjust temperature based on discussion goals:
 **Example Configuration:**
 ```json
 {
-  "model": "gpt-4",
+  "model": "gpt-5.4-mini",
   "temperature": 0.5,
   "maxTokens": 2000
 }
