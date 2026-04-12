@@ -237,7 +237,7 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
                   <Input
                     type="number"
                     min="5"
-                    max="200"
+                    max="100"
                     {...field}
                     onChange={(e) => {
                       const value = e.target.value;
