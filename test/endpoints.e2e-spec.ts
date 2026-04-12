@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/common/prisma.service';
 import { AuthService } from '../src/common/auth/auth.service';
@@ -11,6 +12,17 @@ describe('Endpoints (e2e)', () => {
   const mockExpert = {
     id: 'expert-1',
     name: 'Test Expert',
+    specialty: 'Testing',
+    systemPrompt: 'You are a test expert',
+    driverType: 'OPENAI',
+    config: { model: 'gpt-5.4-mini' },
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-01'),
+  };
+
+  const mockExpert2 = {
+    id: 'expert-2',
+    name: 'Test Expert 2',
     specialty: 'Testing',
     systemPrompt: 'You are a test expert',
     driverType: 'OPENAI',
@@ -53,7 +65,7 @@ describe('Endpoints (e2e)', () => {
       createMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     expert: {
-      findMany: jest.fn().mockResolvedValue([mockExpert]),
+      findMany: jest.fn().mockResolvedValue([mockExpert, mockExpert2]),
       findUnique: jest.fn().mockResolvedValue(mockExpert),
       create: jest.fn().mockResolvedValue(mockExpert),
       update: jest.fn().mockResolvedValue(mockExpert),
@@ -78,6 +90,13 @@ describe('Endpoints (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
     await app.getHttpAdapter().getInstance().ready();
 
@@ -194,6 +213,7 @@ describe('Endpoints (e2e)', () => {
 
   describe('Session lifecycle', () => {
     it('POST /sessions (201) - create session', async () => {
+      mockPrismaService.expert.findMany.mockResolvedValue([mockExpert, mockExpert2]);
       mockPrismaService.$transaction.mockImplementation(async (fn) => {
         return fn({
           session: {
@@ -214,8 +234,8 @@ describe('Endpoints (e2e)', () => {
           'content-type': 'application/json',
         },
         payload: {
-          problemStatement: 'Test',
-          expertIds: ['expert-1'],
+          problemStatement: 'Test problem statement for session',
+          expertIds: ['expert-1', 'expert-2'],
         },
       });
 

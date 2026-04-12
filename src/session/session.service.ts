@@ -7,7 +7,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SessionStatus } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import {
+  PrismaClientKnownRequestError,
+  PrismaClientValidationError,
+} from '@prisma/client/runtime/library';
 import { PrismaService } from '../common/prisma.service';
 import { CreateSessionDto, UpdateSessionDto, SessionResponseDto } from './dto';
 
@@ -32,7 +35,7 @@ export class SessionService {
    * @throws BadRequestException if there are duplicate expert IDs
    */
   async create(createSessionDto: CreateSessionDto): Promise<SessionResponseDto> {
-    const { problemStatement, expertIds, maxMessages, type } = createSessionDto;
+    const { problemStatement, expertIds, maxMessages, type, consensusThreshold } = createSessionDto;
 
     // Validate that all expert IDs exist using a single batch query
     const existingExperts = await this.prisma.expert.findMany({
@@ -64,6 +67,7 @@ export class SessionService {
             maxMessages: maxMessages ?? undefined,
             status: SessionStatus.PENDING,
             type: type ?? undefined,
+            consensusThreshold: consensusThreshold ?? undefined,
           },
         });
 
@@ -95,8 +99,18 @@ export class SessionService {
       this.logger.log(`Created session ${session.id} with ${expertIds.length} experts`);
       return SessionResponseDto.fromPrisma(session);
     } catch (error) {
+      if (error instanceof PrismaClientValidationError) {
+        this.logger.error(`Prisma validation error creating session: ${error.message}`);
+        throw new BadRequestException('Invalid data provided for session creation');
+      }
       if (error instanceof PrismaClientKnownRequestError) {
-        this.logger.error(`Prisma error creating session: ${error.message}`, error.stack);
+        if (error.code === 'P2002') {
+          throw new ConflictException('A session with conflicting data already exists');
+        }
+        if (error.code === 'P2003') {
+          throw new BadRequestException('Referenced record does not exist');
+        }
+        this.logger.error(`Prisma error creating session: code=${error.code} ${error.message}`, error.stack);
         throw new InternalServerErrorException('Failed to create session');
       }
       throw error;
