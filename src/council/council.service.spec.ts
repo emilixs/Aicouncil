@@ -441,4 +441,244 @@ describe('CouncilService - Analytics Capture', () => {
       jest.useRealTimers();
     });
   });
+
+  describe('consensus detection', () => {
+    it.each([
+      'I agree with the proposal',
+      'consensus reached on this topic',
+      'we agree on the approach',
+      'I concur with the analysis',
+      'agreed, let us proceed',
+      'we have consensus',
+      'we reached consensus',
+      'we are in agreement',
+    ])('detects consensus in: "%s"', async (content) => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockResolvedValueOnce(makeLLMResponse(content));
+
+      messageService.create.mockResolvedValue({
+        id: 'msg-1', sessionId, content, role: MessageRole.ASSISTANT,
+        expertId: expert1Id, isIntervention: false, timestamp: new Date(),
+      } as any);
+      messageService.countBySession.mockResolvedValue(0);
+
+      await setupAndRunLoop().catch(() => {});
+
+      const consensusEvent = eventEmitter.emit.mock.calls.find(
+        (call) => call[0] === 'discussion.consensus.reached',
+      );
+      expect(consensusEvent).toBeDefined();
+    });
+
+    it('does not detect consensus for normal discussion content', async () => {
+      sessionService.findOne.mockResolvedValue({ ...mockSession, maxMessages: 2 } as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockResolvedValue(
+        makeLLMResponse('I think we should consider other options'),
+      );
+
+      let msgCount = 0;
+      messageService.create.mockImplementation(async () => {
+        msgCount++;
+        return {
+          id: `msg-${msgCount}`, sessionId, content: 'msg',
+          role: MessageRole.ASSISTANT, expertId: expert1Id, isIntervention: false,
+          timestamp: new Date(),
+        } as any;
+      });
+      messageService.countBySession.mockImplementation(async () => msgCount);
+
+      await setupAndRunLoop().catch(() => {});
+
+      const consensusEvent = eventEmitter.emit.mock.calls.find(
+        (call) => call[0] === 'discussion.consensus.reached',
+      );
+      expect(consensusEvent).toBeUndefined();
+    });
+  });
+
+  describe('empty response handling', () => {
+    it('skips message creation for empty response and continues', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock)
+        .mockResolvedValueOnce(makeLLMResponse('   '))
+        .mockResolvedValueOnce(makeLLMResponse('I agree, consensus reached'));
+
+      messageService.create.mockResolvedValue({
+        id: 'msg-1', sessionId, content: 'I agree, consensus reached',
+        role: MessageRole.ASSISTANT, expertId: expert2Id, isIntervention: false,
+        timestamp: new Date(),
+      } as any);
+      messageService.countBySession.mockResolvedValue(0);
+
+      await setupAndRunLoop().catch(() => {});
+
+      const createCalls = messageService.create.mock.calls;
+      expect(createCalls.length).toBe(1);
+      expect(createCalls[0][0].content).toBe('I agree, consensus reached');
+    });
+  });
+
+  describe('transient error handling', () => {
+    it('continues to next expert on transient LLMRateLimitException', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const rateLimitError = new Error('Rate limited');
+      rateLimitError.name = 'LLMRateLimitException';
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock)
+        .mockRejectedValueOnce(rateLimitError)
+        .mockResolvedValueOnce(makeLLMResponse('I agree, consensus reached'));
+
+      messageService.create.mockResolvedValue({
+        id: 'msg-1', sessionId, content: 'msg', role: MessageRole.ASSISTANT,
+        expertId: expert2Id, isIntervention: false, timestamp: new Date(),
+      } as any);
+      messageService.countBySession.mockResolvedValue(0);
+
+      await setupAndRunLoop().catch(() => {});
+
+      expect(messageService.create).toHaveBeenCalled();
+    });
+
+    it('throws on fatal (non-transient) error', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const fatalError = new Error('Invalid API key');
+      fatalError.name = 'LLMAuthenticationException';
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockRejectedValueOnce(fatalError);
+
+      messageService.countBySession.mockResolvedValue(0);
+
+      await expect(setupAndRunLoop()).rejects.toThrow('Invalid API key');
+    });
+  });
+
+  describe('session control: stop', () => {
+    it('stops the loop and sets status to CANCELLED', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockImplementation(async () => {
+        (councilService as any).sessionControlFlags.set(sessionId, 'stopped');
+        return makeLLMResponse('some content');
+      });
+
+      let msgCount = 0;
+      messageService.create.mockImplementation(async () => {
+        msgCount++;
+        return {
+          id: `msg-${msgCount}`, sessionId, content: 'msg',
+          role: MessageRole.ASSISTANT, expertId: expert1Id, isIntervention: false,
+          timestamp: new Date(),
+        } as any;
+      });
+      messageService.countBySession.mockImplementation(async () => msgCount);
+
+      await setupAndRunLoop().catch(() => {});
+
+      expect(sessionService.update).toHaveBeenCalledWith(sessionId, {
+        status: SessionStatus.CANCELLED,
+      });
+    });
+  });
+
+  describe('concludeSession error handling', () => {
+    it('emits error event when concludeSession fails but does not throw', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockRejectedValue(new Error('DB error'));
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockResolvedValueOnce(
+        makeLLMResponse('I agree, consensus reached'),
+      );
+
+      messageService.create.mockResolvedValue({
+        id: 'msg-1', sessionId, content: 'I agree',
+        role: MessageRole.ASSISTANT, expertId: expert1Id, isIntervention: false,
+        timestamp: new Date(),
+      } as any);
+      messageService.countBySession.mockResolvedValue(1);
+
+      await setupAndRunLoop().catch(() => {});
+
+      const errorEvent = eventEmitter.emit.mock.calls.find(
+        (call) => call[0] === 'discussion.error',
+      );
+      expect(errorEvent).toBeDefined();
+    });
+  });
+
+  describe('processInterventions', () => {
+    it('emits error event when intervention creation fails', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      (councilService as any).interventionQueues.set(sessionId, [
+        { content: 'intervention 1', userId: 'user-1' },
+      ]);
+
+      messageService.create
+        .mockRejectedValueOnce(new Error('Failed to create'))
+        .mockResolvedValue({
+          id: 'msg-2', sessionId, content: 'I agree, consensus reached',
+          role: MessageRole.ASSISTANT, expertId: expert1Id, isIntervention: false,
+          timestamp: new Date(),
+        } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockResolvedValueOnce(
+        makeLLMResponse('I agree, consensus reached'),
+      );
+      messageService.countBySession.mockResolvedValue(0);
+
+      (councilService as any).sessionControlFlags.set(sessionId, 'running');
+      await councilService
+        .runDiscussionLoop(sessionId, mockSession as any, normalizedExperts as any)
+        .catch(() => {});
+
+      const errorEvents = eventEmitter.emit.mock.calls.filter(
+        (call) => call[0] === 'discussion.error',
+      );
+      expect(errorEvents.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('max messages limit', () => {
+    it('breaks the loop and concludes when max messages reached', async () => {
+      const smallSession = { ...mockSession, maxMessages: 3 };
+      sessionService.findOne.mockResolvedValue(smallSession as any);
+      sessionService.update.mockResolvedValue({ ...smallSession, status: SessionStatus.COMPLETED } as any);
+
+      messageService.countBySession.mockResolvedValue(3);
+
+      (councilService as any).interventionQueues.set(sessionId, []);
+      (councilService as any).sessionControlFlags.set(sessionId, 'running');
+      await councilService.runDiscussionLoop(
+        sessionId,
+        smallSession as any,
+        normalizedExperts as any,
+      );
+
+      const endedEvent = eventEmitter.emit.mock.calls.find(
+        (call) => call[0] === 'discussion.session.ended',
+      );
+      expect(endedEvent).toBeDefined();
+      expect(endedEvent![1].reason).toBe('max_messages');
+    });
+  });
 });

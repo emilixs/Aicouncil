@@ -223,5 +223,117 @@ describe('OpenAIDriver', () => {
         LLMServiceException,
       );
     });
+
+    it('maps status from error.response.status when error.status is absent', async () => {
+      const err: any = new Error('Server error');
+      err.response = { status: 503 };
+      mockCreate.mockRejectedValue(err);
+
+      await expect(driver.chat(makeMessages(), defaultConfig)).rejects.toBeInstanceOf(
+        LLMServiceException,
+      );
+    });
+  });
+
+  describe('streamChat()', () => {
+    it('yields content deltas from streamed chunks', async () => {
+      const chunks = [
+        { choices: [{ delta: { content: 'Hello' } }] },
+        { choices: [{ delta: { content: ' world' } }] },
+        { choices: [{ delta: { content: null } }] },
+      ];
+
+      mockCreate.mockResolvedValue({
+        [Symbol.asyncIterator]: async function* () {
+          for (const chunk of chunks) yield chunk;
+        },
+      });
+
+      const results: string[] = [];
+      for await (const delta of driver.streamChat(makeMessages(), defaultConfig)) {
+        results.push(delta);
+      }
+
+      expect(results).toEqual(['Hello', ' world']);
+    });
+
+    it('passes stream: true to the API', async () => {
+      mockCreate.mockResolvedValue({
+        [Symbol.asyncIterator]: async function* () {},
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      for await (const _ of driver.streamChat(makeMessages(), defaultConfig)) {
+        // drain
+      }
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ stream: true }),
+      );
+    });
+
+    it('maps errors through mapError', async () => {
+      mockCreate.mockRejectedValue({ status: 401 });
+
+      const gen = driver.streamChat(makeMessages(), defaultConfig);
+      await expect(gen.next()).rejects.toBeInstanceOf(LLMAuthenticationException);
+    });
+  });
+
+  describe('chat() - edge cases', () => {
+    it('returns empty string when choices array is empty', async () => {
+      mockCreate.mockResolvedValue({
+        choices: [],
+        model: 'gpt-5.4-mini',
+        usage: { prompt_tokens: 10, completion_tokens: 0, total_tokens: 10 },
+      });
+
+      const result = await driver.chat(makeMessages(), defaultConfig);
+
+      expect(result.content).toBe('');
+    });
+
+    it('returns 0 for usage when usage is undefined', async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: 'hi' }, finish_reason: 'stop' }],
+        model: 'gpt-5.4-mini',
+        usage: undefined,
+      });
+
+      const result = await driver.chat(makeMessages(), defaultConfig);
+
+      expect(result.usage).toEqual({
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+      });
+    });
+
+    it('passes stop sequences from config', async () => {
+      mockCreate.mockResolvedValue(makeSuccessResponse());
+
+      const config: LLMConfig = {
+        model: 'gpt-5.4-mini',
+        stop: ['STOP', 'END'],
+      } as LLMConfig;
+
+      await driver.chat(makeMessages(), config);
+
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ stop: ['STOP', 'END'] }),
+      );
+    });
+
+    it('returns empty string when message content is null', async () => {
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: null }, finish_reason: 'stop' }],
+        model: 'gpt-5.4-mini',
+        usage: { prompt_tokens: 10, completion_tokens: 0, total_tokens: 10 },
+      });
+
+      const result = await driver.chat(makeMessages(), defaultConfig);
+
+      expect(result.content).toBe('');
+    });
   });
 });
