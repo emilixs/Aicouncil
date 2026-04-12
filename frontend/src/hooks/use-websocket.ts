@@ -56,9 +56,18 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           }
         });
 
-        newSocket.on("disconnect", () => {
+        newSocket.on("disconnect", (reason) => {
           if (isMounted) {
             setIsConnected(false);
+            if (reason === "io server disconnect") {
+              newSocket.connect();
+            }
+          }
+        });
+
+        newSocket.on("connect_error", (err) => {
+          if (isMounted) {
+            setError(`Connection failed: ${err.message}`);
           }
         });
 
