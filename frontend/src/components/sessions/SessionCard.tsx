@@ -10,14 +10,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CheckCircle2, Clock, Pause, Play, Users } from "lucide-react";
+import { CheckCircle2, Clock, Pause, Play, Trash2, Users } from "lucide-react";
 
 interface SessionCardProps {
   session: SessionResponse;
   onViewSession: (sessionId: string) => void;
+  onDeleteSession?: (session: SessionResponse) => void;
 }
 
-export function SessionCard({ session, onViewSession }: SessionCardProps) {
+export function SessionCard({ session, onViewSession, onDeleteSession }: SessionCardProps) {
   // Map statusDisplay to SessionStatus enum
   const mapStatusDisplay = (statusDisplay?: string): SessionStatus => {
     switch (statusDisplay?.toLowerCase()) {
@@ -145,10 +146,10 @@ export function SessionCard({ session, onViewSession }: SessionCardProps) {
         </div>
       </CardContent>
 
-      <CardFooter>
+      <CardFooter className="gap-2">
         <Button
           variant="outline"
-          className="w-full"
+          className="flex-1"
           onClick={(e) => {
             e.stopPropagation();
             onViewSession(session.id);
@@ -156,6 +157,19 @@ export function SessionCard({ session, onViewSession }: SessionCardProps) {
         >
           View Details
         </Button>
+        {onDeleteSession && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteSession(session);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

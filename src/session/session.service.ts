@@ -283,6 +283,19 @@ export class SessionService {
    * @param status - Current status
    * @returns Array of valid next statuses
    */
+  async remove(id: string): Promise<void> {
+    const session = await this.prisma.session.findUnique({
+      where: { id },
+    });
+
+    if (!session) {
+      throw new NotFoundException(`Session with ID ${id} not found`);
+    }
+
+    await this.prisma.session.delete({ where: { id } });
+    this.logger.log(`Deleted session ${id}`);
+  }
+
   private getValidTransitions(status: SessionStatus): SessionStatus[] {
     switch (status) {
       case SessionStatus.PENDING:
