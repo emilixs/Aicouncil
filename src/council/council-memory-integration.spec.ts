@@ -15,6 +15,7 @@ import { SessionService } from '../session/session.service';
 import { MessageService } from '../message/message.service';
 import { DriverFactory } from '../llm/factories/driver.factory';
 import { MemoryService } from '../memory/memory.service';
+import { ConsensusService } from '../consensus/consensus.service';
 import { SessionStatus, MemoryType } from '@prisma/client';
 
 const mockSessionService = {
@@ -44,6 +45,15 @@ const mockMemoryService = {
   generateSessionMemory: jest.fn(),
 };
 
+const mockConsensusService = {
+  evaluateConsensus: jest.fn().mockResolvedValue({ convergenceScore: 0.5, consensusReached: false, areasOfAgreement: [], areasOfDisagreement: [], progressAssessment: 'ongoing', reasoning: 'test' }),
+  checkStallDetection: jest.fn().mockReturnValue({ stalled: false, stalledRounds: 0 }),
+  hasAutoPolledSession: jest.fn().mockResolvedValue(false),
+  createPoll: jest.fn().mockResolvedValue(undefined),
+  generateSummary: jest.fn().mockResolvedValue(undefined),
+  clearSessionState: jest.fn(),
+};
+
 describe('CouncilService — Memory Integration', () => {
   let service: CouncilService;
 
@@ -56,6 +66,10 @@ describe('CouncilService — Memory Integration', () => {
         { provide: DriverFactory, useValue: mockDriverFactory },
         { provide: EventEmitter2, useValue: mockEventEmitter },
         { provide: MemoryService, useValue: mockMemoryService },
+        {
+          provide: ConsensusService,
+          useValue: mockConsensusService,
+        },
       ],
     }).compile();
 
@@ -235,11 +249,19 @@ describe('CouncilService — Memory Integration', () => {
       mockMemoryService.formatMemoriesForInjection.mockReturnValue('');
       mockSessionService.update.mockResolvedValue({});
       mockMemoryService.generateSessionMemory.mockResolvedValue(undefined);
+      mockConsensusService.evaluateConsensus.mockResolvedValue({
+        convergenceScore: 0.9,
+        consensusReached: true,
+        areasOfAgreement: ['all agree'],
+        areasOfDisagreement: [],
+        progressAssessment: 'done',
+        reasoning: 'consensus reached',
+      });
 
       await service.startDiscussion('sess1');
 
-      // Memory generation is now non-blocking — flush microtasks
-      await new Promise((r) => process.nextTick(r));
+      // Loop runs in background with sleep(200) between turns — wait for it to complete
+      await new Promise((r) => setTimeout(r, 1500));
 
       expect(mockMemoryService.generateSessionMemory).toHaveBeenCalledWith('exp1', 'sess1');
       expect(mockMemoryService.generateSessionMemory).toHaveBeenCalledWith('exp2', 'sess1');

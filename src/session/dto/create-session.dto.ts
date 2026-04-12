@@ -55,4 +55,9 @@ export class CreateSessionDto {
   @IsOptional()
   @IsEnum(SessionType)
   type?: SessionType;
+
+  @IsOptional()
+  @Min(0.1)
+  @Max(1.0)
+  consensusThreshold?: number;
 }
