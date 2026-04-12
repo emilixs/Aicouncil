@@ -226,4 +226,440 @@ describe('DiscussionGateway', () => {
       expect(mockClient.emit).toHaveBeenCalledWith('left-session', { sessionId: 'session-1' });
     });
   });
+
+  describe('afterInit - auth middleware', () => {
+    it('registers middleware on the server', () => {
+      gateway.afterInit(mockServer as any);
+
+      expect(mockServer.use).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('authenticates via handshake.auth.token', async () => {
+      const authService = (gateway as any).authService;
+      gateway.afterInit(mockServer as any);
+
+      const middleware = mockServer.use.mock.calls[0][0];
+      const socket = {
+        handshake: { auth: { token: 'valid-token' }, headers: {} },
+        data: {},
+      };
+      const next = jest.fn();
+
+      await middleware(socket, next);
+
+      expect(authService.verifyToken).toHaveBeenCalledWith('valid-token');
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('authenticates via Authorization bearer header as fallback', async () => {
+      const authService = (gateway as any).authService;
+      gateway.afterInit(mockServer as any);
+
+      const middleware = mockServer.use.mock.calls[0][0];
+      const socket = {
+        handshake: {
+          auth: {},
+          headers: { authorization: 'Bearer header-token' },
+        },
+        data: {},
+      };
+      const next = jest.fn();
+
+      await middleware(socket, next);
+
+      expect(authService.verifyToken).toHaveBeenCalledWith('header-token');
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('rejects connection when no token is provided', async () => {
+      gateway.afterInit(mockServer as any);
+
+      const middleware = mockServer.use.mock.calls[0][0];
+      const socket = {
+        handshake: { auth: {}, headers: {} },
+        data: {},
+      };
+      const next = jest.fn();
+
+      await middleware(socket, next);
+
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'Unauthorized: No token provided',
+      }));
+    });
+
+    it('rejects connection when token verification returns null', async () => {
+      const authService = (gateway as any).authService;
+      authService.verifyToken.mockReturnValue(null);
+      gateway.afterInit(mockServer as any);
+
+      const middleware = mockServer.use.mock.calls[0][0];
+      const socket = {
+        handshake: { auth: { token: 'invalid' }, headers: {} },
+        data: {},
+      };
+      const next = jest.fn();
+
+      await middleware(socket, next);
+
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'Unauthorized: Invalid token',
+      }));
+    });
+
+    it('rejects connection when token verification throws', async () => {
+      const authService = (gateway as any).authService;
+      authService.verifyToken.mockImplementation(() => {
+        throw new Error('verification failed');
+      });
+      gateway.afterInit(mockServer as any);
+
+      const middleware = mockServer.use.mock.calls[0][0];
+      const socket = {
+        handshake: { auth: { token: 'bad' }, headers: {} },
+        data: {},
+      };
+      const next = jest.fn();
+
+      await middleware(socket, next);
+
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'Unauthorized: Token verification failed',
+      }));
+    });
+
+    it('ignores non-bearer Authorization header', async () => {
+      gateway.afterInit(mockServer as any);
+
+      const middleware = mockServer.use.mock.calls[0][0];
+      const socket = {
+        handshake: {
+          auth: {},
+          headers: { authorization: 'Basic dXNlcjpwYXNz' },
+        },
+        data: {},
+      };
+      const next = jest.fn();
+
+      await middleware(socket, next);
+
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'Unauthorized: No token provided',
+      }));
+    });
+  });
+
+  describe('handleConnection - edge cases', () => {
+    it('disconnects client with no user data', () => {
+      const noAuthClient = {
+        id: 'socket-2',
+        data: {},
+        join: jest.fn(),
+        emit: jest.fn(),
+        disconnect: jest.fn(),
+      };
+
+      gateway.handleConnection(noAuthClient as any);
+
+      expect(noAuthClient.disconnect).toHaveBeenCalled();
+      expect(noAuthClient.join).not.toHaveBeenCalled();
+    });
+
+    it('emits connected event with sessionId', () => {
+      gateway.handleConnection(mockClient as any);
+
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1' });
+    });
+
+    it('tracks subscription for connected client', () => {
+      gateway.handleConnection(mockClient as any);
+
+      const subs = (gateway as any).sessionSubscriptions.get('session-1');
+      expect(subs).toBeDefined();
+      expect(subs.has('socket-1')).toBe(true);
+    });
+  });
+
+  describe('handleDisconnect - subscription cleanup', () => {
+    it('removes client from subscription tracking', () => {
+      gateway.handleConnection(mockClient as any);
+      gateway.handleDisconnect(mockClient as any);
+
+      const subs = (gateway as any).sessionSubscriptions.get('session-1');
+      expect(subs).toBeUndefined();
+    });
+
+    it('handles disconnect when client has no user data', () => {
+      const noAuthClient = { id: 'socket-3', data: {} };
+
+      expect(() => gateway.handleDisconnect(noAuthClient as any)).not.toThrow();
+    });
+  });
+
+  describe('handleStartDiscussion - session ID mismatch', () => {
+    it('emits error when sessionId does not match client session', async () => {
+      await gateway.handleStartDiscussion(
+        { sessionId: 'different-session' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Session ID mismatch',
+      });
+    });
+  });
+
+  describe('handleIntervention - edge cases', () => {
+    it('emits error when session ID mismatches', async () => {
+      await gateway.handleIntervention(
+        { sessionId: 'wrong-session', content: 'text' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Session ID mismatch',
+      });
+    });
+
+    it('emits error when client has no user data', async () => {
+      const noAuthClient = {
+        id: 'socket-4',
+        data: {},
+        emit: jest.fn(),
+      };
+
+      await gateway.handleIntervention(
+        { sessionId: 'session-1', content: 'text' },
+        noAuthClient as any,
+      );
+
+      expect(noAuthClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Unauthorized',
+      });
+    });
+
+    it('emits error when queueIntervention returns false', async () => {
+      (councilService.queueIntervention as jest.Mock).mockResolvedValue(false);
+
+      await gateway.handleIntervention(
+        { sessionId: 'session-1', content: 'valid content' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Intervention rejected: session not ACTIVE or failed to queue',
+      });
+    });
+
+    it('emits intervention-queued on success', async () => {
+      (councilService.queueIntervention as jest.Mock).mockResolvedValue(true);
+
+      await gateway.handleIntervention(
+        { sessionId: 'session-1', content: 'valid content' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-queued', {
+        sessionId: 'session-1',
+      });
+    });
+
+    it('handles null content', async () => {
+      await gateway.handleIntervention(
+        { sessionId: 'session-1', content: null as any },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Invalid intervention content',
+      });
+    });
+  });
+
+  describe('handlePauseDiscussion - session ID mismatch', () => {
+    it('emits error when session ID mismatches', async () => {
+      await gateway.handlePauseDiscussion(
+        { sessionId: 'wrong-session' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Session ID mismatch',
+      });
+    });
+
+    it('emits error when councilService throws', async () => {
+      (councilService.pauseDiscussion as jest.Mock).mockRejectedValue(
+        new Error('not running'),
+      );
+
+      await gateway.handlePauseDiscussion(
+        { sessionId: 'session-1' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'not running',
+      });
+    });
+  });
+
+  describe('handleResumeDiscussion - session ID mismatch', () => {
+    it('emits error when session ID mismatches', async () => {
+      await gateway.handleResumeDiscussion(
+        { sessionId: 'wrong-session' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Session ID mismatch',
+      });
+    });
+
+    it('emits error when councilService throws', async () => {
+      (councilService.resumeDiscussion as jest.Mock).mockRejectedValue(
+        new Error('not paused'),
+      );
+
+      await gateway.handleResumeDiscussion(
+        { sessionId: 'session-1' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'not paused',
+      });
+    });
+  });
+
+  describe('handleStopDiscussion - session ID mismatch', () => {
+    it('emits error when session ID mismatches', async () => {
+      await gateway.handleStopDiscussion(
+        { sessionId: 'wrong-session' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Session ID mismatch',
+      });
+    });
+
+    it('emits error when councilService throws', async () => {
+      (councilService.stopDiscussion as jest.Mock).mockRejectedValue(
+        new Error('not active'),
+      );
+
+      await gateway.handleStopDiscussion(
+        { sessionId: 'session-1' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'not active',
+      });
+    });
+  });
+
+  describe('handleJoinSession - session ID mismatch', () => {
+    it('emits error when session ID mismatches', async () => {
+      await gateway.handleJoinSession(
+        { sessionId: 'wrong-session' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Session ID mismatch',
+      });
+    });
+  });
+
+  describe('handleLeaveSession - session ID mismatch', () => {
+    it('emits error when session ID mismatches', async () => {
+      await gateway.handleLeaveSession(
+        { sessionId: 'wrong-session' },
+        mockClient as any,
+      );
+
+      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+        error: 'Session ID mismatch',
+      });
+    });
+  });
+
+  describe('onModuleInit - event listeners', () => {
+    it('registers all discussion and comparison event listeners', () => {
+      const eventEmitter = (gateway as any).eventEmitter;
+
+      gateway.onModuleInit();
+
+      expect(eventEmitter.on).toHaveBeenCalledTimes(12);
+    });
+
+    it('broadcasts MESSAGE_CREATED to session room', () => {
+      const eventEmitter = (gateway as any).eventEmitter;
+      gateway.onModuleInit();
+
+      const messageHandler = eventEmitter.on.mock.calls.find(
+        (call: any[]) => call[0] === 'discussion.message.created',
+      );
+      if (messageHandler) {
+        messageHandler[1]({
+          sessionId: 'session-1',
+          message: { id: 'msg-1', content: 'hello' },
+        });
+
+        expect(mockServer.to).toHaveBeenCalledWith('session:session-1');
+        expect(mockServer.emit).toHaveBeenCalledWith('message', {
+          id: 'msg-1',
+          content: 'hello',
+        });
+      }
+    });
+
+    it('broadcasts SESSION_ENDED to session room', () => {
+      const eventEmitter = (gateway as any).eventEmitter;
+      gateway.onModuleInit();
+
+      const endedHandler = eventEmitter.on.mock.calls.find(
+        (call: any[]) => call[0] === 'discussion.session.ended',
+      );
+      if (endedHandler) {
+        endedHandler[1]({
+          sessionId: 'session-1',
+          reason: 'consensus',
+          consensusReached: true,
+          messageCount: 10,
+        });
+
+        expect(mockServer.to).toHaveBeenCalledWith('session:session-1');
+        expect(mockServer.emit).toHaveBeenCalledWith('session-ended', {
+          reason: 'consensus',
+          consensusReached: true,
+          messageCount: 10,
+        });
+      }
+    });
+
+    it('broadcasts ERROR to session room', () => {
+      const eventEmitter = (gateway as any).eventEmitter;
+      gateway.onModuleInit();
+
+      const errorHandler = eventEmitter.on.mock.calls.find(
+        (call: any[]) => call[0] === 'discussion.error',
+      );
+      if (errorHandler) {
+        errorHandler[1]({
+          sessionId: 'session-1',
+          error: 'something failed',
+          expertId: 'expert-1',
+        });
+
+        expect(mockServer.to).toHaveBeenCalledWith('session:session-1');
+        expect(mockServer.emit).toHaveBeenCalledWith('error', {
+          error: 'something failed',
+          expertId: 'expert-1',
+        });
+      }
+    });
+  });
 });
