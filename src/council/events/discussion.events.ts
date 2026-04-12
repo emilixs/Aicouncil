@@ -58,6 +58,7 @@ export interface ExpertTurnStartEvent {
   expertId: string;
   expertName: string;
   turnNumber: number;
+  injectedMemoryIds: string[];
 }
 
 /**
