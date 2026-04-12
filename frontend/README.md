@@ -211,7 +211,7 @@ The session management system enables users to create discussion sessions with s
 **Validation Schema** (`src/lib/validations/session.ts`):
 ```typescript
 sessionFormSchema = {
-  problemStatement: string (min 10, max 2000),
+  problemStatement: string (min 10),
   expertIds: string[] (min 2, max 10),
   maxMessages: number (min 5, max 200, default 30)
 }
