@@ -5,6 +5,7 @@ import { MessageService } from '../message/message.service';
 import { DriverFactory } from '../llm/factories/driver.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
 import { DISCUSSION_EVENTS } from './events/discussion.events';
 
 describe('CouncilService - Pause/Resume/Stop', () => {
@@ -136,26 +137,14 @@ describe('CouncilService - Pause/Resume/Stop', () => {
       expect(pauseUpdate).toBeDefined();
     });
 
-    it('should not pause if session is not running', async () => {
-      await councilService.pauseDiscussion(sessionId);
-
-      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        DISCUSSION_EVENTS.SESSION_PAUSED,
-        expect.anything(),
-      );
-      expect(sessionService.update).not.toHaveBeenCalled();
+    it('should throw BadRequestException if session is not running', async () => {
+      await expect(councilService.pauseDiscussion(sessionId)).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('resumeDiscussion', () => {
-    it('should not resume if session is not paused', async () => {
-      await councilService.resumeDiscussion(sessionId);
-
-      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        DISCUSSION_EVENTS.SESSION_RESUMED,
-        expect.anything(),
-      );
-      expect(sessionService.update).not.toHaveBeenCalled();
+    it('should throw BadRequestException if session is not paused', async () => {
+      await expect(councilService.resumeDiscussion(sessionId)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -200,13 +189,8 @@ describe('CouncilService - Pause/Resume/Stop', () => {
       expect(cancelUpdate).toBeDefined();
     });
 
-    it('should not stop if session has no active flag', async () => {
-      await councilService.stopDiscussion(sessionId);
-
-      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
-        DISCUSSION_EVENTS.DISCUSSION_STOPPED,
-        expect.anything(),
-      );
+    it('should throw BadRequestException if session has no active flag', async () => {
+      await expect(councilService.stopDiscussion(sessionId)).rejects.toThrow(BadRequestException);
     });
   });
 

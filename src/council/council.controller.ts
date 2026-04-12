@@ -35,7 +35,7 @@ export class CouncilController {
   }
 
   @Post(':id/resume')
-  @HttpCode(HttpStatus.ACCEPTED)
+  @HttpCode(HttpStatus.OK)
   async resumeDiscussion(@Param('id') id: string): Promise<SessionResponseDto> {
     await this.councilService.resumeDiscussion(id);
     return this.sessionService.findOne(id);

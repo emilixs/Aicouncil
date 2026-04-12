@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { SessionStatus, DriverType } from '@prisma/client';
 import { CouncilController } from './council.controller';
 import { CouncilService } from './council.service';
@@ -162,6 +163,32 @@ describe('CouncilController', () => {
       expect(councilService.stopDiscussion).toHaveBeenCalledWith(sessionId);
       expect(sessionService.findOne).toHaveBeenCalledWith(sessionId);
       expect(result).toBe(session);
+    });
+  });
+
+  describe('invalid state transitions', () => {
+    it('should propagate BadRequestException when pausing a non-running session', async () => {
+      councilService.pauseDiscussion.mockRejectedValue(
+        new BadRequestException('Cannot pause session'),
+      );
+
+      await expect(controller.pauseDiscussion(sessionId)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should propagate BadRequestException when resuming a non-paused session', async () => {
+      councilService.resumeDiscussion.mockRejectedValue(
+        new BadRequestException('Cannot resume session'),
+      );
+
+      await expect(controller.resumeDiscussion(sessionId)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should propagate BadRequestException when stopping an inactive session', async () => {
+      councilService.stopDiscussion.mockRejectedValue(
+        new BadRequestException('Cannot stop session'),
+      );
+
+      await expect(controller.stopDiscussion(sessionId)).rejects.toThrow(BadRequestException);
     });
   });
 });

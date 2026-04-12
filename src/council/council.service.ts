@@ -55,8 +55,7 @@ export class CouncilService {
   async pauseDiscussion(sessionId: string): Promise<void> {
     const flag = this.sessionControlFlags.get(sessionId);
     if (flag !== 'running') {
-      this.logger.warn(`Cannot pause session ${sessionId}: not running (flag=${flag})`);
-      return;
+      throw new BadRequestException(`Cannot pause session ${sessionId}: session is not running`);
     }
     this.sessionControlFlags.set(sessionId, 'paused');
     await this.sessionService.update(sessionId, { status: SessionStatus.PAUSED });
@@ -72,8 +71,7 @@ export class CouncilService {
   async resumeDiscussion(sessionId: string): Promise<void> {
     const flag = this.sessionControlFlags.get(sessionId);
     if (flag !== 'paused') {
-      this.logger.warn(`Cannot resume session ${sessionId}: not paused (flag=${flag})`);
-      return;
+      throw new BadRequestException(`Cannot resume session ${sessionId}: session is not paused`);
     }
     this.sessionControlFlags.set(sessionId, 'running');
     const resolver = this.pauseResolvers.get(sessionId);
@@ -94,8 +92,7 @@ export class CouncilService {
   async stopDiscussion(sessionId: string): Promise<void> {
     const flag = this.sessionControlFlags.get(sessionId);
     if (!flag || flag === 'stopped') {
-      this.logger.warn(`Cannot stop session ${sessionId}: not active (flag=${flag})`);
-      return;
+      throw new BadRequestException(`Cannot stop session ${sessionId}: session is not active`);
     }
     this.sessionControlFlags.set(sessionId, 'stopped');
     const resolver = this.pauseResolvers.get(sessionId);
