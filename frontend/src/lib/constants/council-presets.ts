@@ -30,4 +30,16 @@ export const COUNCIL_PRESETS: CouncilPreset[] = [
     description: 'A security-focused council for comprehensive threat assessment and code hardening.',
     expertTemplateIds: ['tpl-security-analyst', 'tpl-code-reviewer', 'tpl-devops-engineer', 'tpl-qa-engineer'],
   },
+  {
+    id: 'preset-strategic-advisory',
+    name: 'Strategic Advisory Council',
+    description: 'Ray Dalio, Charlie Munger, and Jeff Bezos for strategic decisions, risk assessment, and long-term planning.',
+    expertTemplateIds: ['tpl-ray-dalio', 'tpl-charlie-munger', 'tpl-jeff-bezos'],
+  },
+  {
+    id: 'preset-innovation-product',
+    name: 'Innovation & Product Council',
+    description: 'Elon Musk, Steve Jobs, and Naval Ravikant for product ideation, challenging assumptions, and finding leverage.',
+    expertTemplateIds: ['tpl-elon-musk', 'tpl-steve-jobs', 'tpl-naval-ravikant'],
+  },
 ];

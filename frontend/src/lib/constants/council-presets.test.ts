@@ -3,8 +3,8 @@ import { COUNCIL_PRESETS } from './council-presets';
 import { EXPERT_TEMPLATES } from './expert-templates';
 
 describe('COUNCIL_PRESETS', () => {
-  it('should contain exactly 4 presets', () => {
-    expect(COUNCIL_PRESETS).toHaveLength(4);
+  it('should contain exactly 6 presets', () => {
+    expect(COUNCIL_PRESETS).toHaveLength(6);
   });
 
   it.each([
