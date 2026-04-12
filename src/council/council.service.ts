@@ -340,6 +340,13 @@ export class CouncilService {
           const startTime = Date.now();
           const response = await driver.chat(contextMessages, expertConfig);
           const responseTimeMs = Date.now() - startTime;
+
+          if (!response || typeof response.content !== 'string') {
+            throw new Error(
+              `Expert ${currentExpert.name} returned invalid response (null or missing content)`,
+            );
+          }
+
           this.logger.log(
             `Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`,
           );

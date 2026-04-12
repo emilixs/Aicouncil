@@ -61,6 +61,10 @@ export class ComparisonService {
         const response = await driver.chat(context, expert.config);
         const durationMs = Math.max(Date.now() - expertStartTime, 1);
 
+        if (!response || typeof response.content !== 'string') {
+          throw new Error(`Expert ${expert.name} returned invalid response`);
+        }
+
         const message = await this.messageService.create({
           sessionId,
           content: response.content,

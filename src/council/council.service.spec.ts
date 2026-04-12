@@ -585,6 +585,45 @@ describe('CouncilService - Analytics Capture', () => {
     });
   });
 
+  describe('null/undefined response handling', () => {
+    it('treats null response from driver as fatal error and cancels session', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockResolvedValueOnce(undefined);
+
+      messageService.countBySession.mockResolvedValue(0);
+
+      await setupAndRunLoop().catch(() => {});
+
+      expect(sessionService.update).toHaveBeenCalledWith(sessionId, {
+        status: SessionStatus.CANCELLED,
+      });
+
+      const errorEvent = eventEmitter.emit.mock.calls.find(
+        (call) => call[0] === 'discussion.error',
+      );
+      expect(errorEvent).toBeDefined();
+    });
+
+    it('treats response with non-string content as fatal error', async () => {
+      sessionService.findOne.mockResolvedValue(mockSession as any);
+      sessionService.update.mockResolvedValue({ ...mockSession, status: SessionStatus.ACTIVE } as any);
+
+      const mockDriver = driverFactory.createDriver(DriverType.ANTHROPIC);
+      (mockDriver.chat as jest.Mock).mockResolvedValueOnce({ content: null, finishReason: 'stop', model: 'test' });
+
+      messageService.countBySession.mockResolvedValue(0);
+
+      await setupAndRunLoop().catch(() => {});
+
+      expect(sessionService.update).toHaveBeenCalledWith(sessionId, {
+        status: SessionStatus.CANCELLED,
+      });
+    });
+  });
+
   describe('transient error handling', () => {
     it('continues to next expert on transient LLMRateLimitException', async () => {
       sessionService.findOne.mockResolvedValue(mockSession as any);

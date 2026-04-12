@@ -389,6 +389,48 @@ describe('ComparisonService', () => {
       }
     });
 
+    it('should treat null/undefined response from driver as a rejected promise', async () => {
+      const session = makeSession();
+      (session as any).type = 'COMPARISON';
+      sessionService.findOne.mockResolvedValue(session);
+      sessionService.update.mockResolvedValue(session);
+
+      const responseA = makeLLMResponse({ content: 'Valid response from A' });
+      const driverA = { chat: jest.fn().mockResolvedValue(responseA), streamChat: jest.fn() };
+      const driverB = { chat: jest.fn().mockResolvedValue(undefined), streamChat: jest.fn() };
+
+      driverFactory.createDriver
+        .mockReturnValueOnce(driverA as any)
+        .mockReturnValueOnce(driverB as any);
+
+      messageService.create.mockResolvedValue(
+        new MessageResponseDto({
+          id: 'msg-1',
+          sessionId,
+          expertId: mockExpertA.id,
+          content: 'Valid response from A',
+          role: MessageRole.ASSISTANT,
+          isIntervention: false,
+          timestamp: new Date(),
+        }),
+      );
+
+      await service.startComparison(sessionId);
+
+      // Only Expert A's message should have been created
+      expect(messageService.create).toHaveBeenCalledTimes(1);
+
+      // Error event should have been emitted for Expert B
+      const errorEvents = eventEmitter.emit.mock.calls.filter(
+        ([event]) => event === COMPARISON_EVENTS.COMPARISON_ERROR,
+      );
+      expect(errorEvents).toHaveLength(1);
+      expect(errorEvents[0][1]).toMatchObject({
+        sessionId,
+        expertId: mockExpertB.id,
+      });
+    });
+
     it('should ensure context isolation — each expert receives only system prompt + problem statement', async () => {
       const session = makeSession();
       (session as any).type = 'COMPARISON';
