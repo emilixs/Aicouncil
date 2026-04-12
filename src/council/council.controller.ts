@@ -1,10 +1,12 @@
 import { Controller, Post, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { Public } from '../common/auth/public.decorator';
 import { CouncilService } from './council.service';
 import { ComparisonService } from './comparison.service';
 import { SessionService } from '../session/session.service';
 import { SessionResponseDto } from '../session/dto/session-response.dto';
 
+@Public()
 @Controller('sessions')
 export class CouncilController {
   constructor(

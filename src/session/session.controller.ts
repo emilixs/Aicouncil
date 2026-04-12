@@ -12,6 +12,7 @@ import { AuthService } from '../common/auth/auth.service';
  * Provides endpoints for creating and retrieving sessions.
  * Session updates are handled internally by the Council orchestrator.
  */
+@Public()
 @Controller('sessions')
 export class SessionController {
   constructor(

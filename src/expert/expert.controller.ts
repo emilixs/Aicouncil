@@ -12,9 +12,11 @@ import {
   ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { Public } from '../common/auth/public.decorator';
 import { ExpertService } from './expert.service';
 import { CreateExpertDto, UpdateExpertDto, CloneExpertDto, ExpertResponseDto } from './dto';
 
+@Public()
 @Controller('experts')
 @UseInterceptors(ClassSerializerInterceptor)
 export class ExpertController {

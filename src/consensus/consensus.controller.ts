@@ -7,11 +7,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
+import { Public } from '../common/auth/public.decorator';
 import { ConsensusService } from './consensus.service';
 import { CreatePollDto, PollResponseDto } from './dto/poll.dto';
 import { DiscussionOutcomeResponseDto } from './dto/discussion-outcome.dto';
 import { ConsensusEvaluationResponseDto } from './dto/consensus-evaluation.dto';
 
+@Public()
 @Controller('sessions')
 export class ConsensusController {
   constructor(private readonly consensusService: ConsensusService) {}

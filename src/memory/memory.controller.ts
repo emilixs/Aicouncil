@@ -10,11 +10,13 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { MemoryType } from '@prisma/client';
+import { Public } from '../common/auth/public.decorator';
 import { MemoryService } from './memory.service';
 import { CreateMemoryDto, UpdateMemoryDto, MemoryResponseDto } from './dto';
 
 const VALID_MEMORY_TYPES = new Set(Object.values(MemoryType));
 
+@Public()
 @Controller('experts/:expertId/memories')
 export class MemoryController {
   constructor(private readonly memoryService: MemoryService) {}
