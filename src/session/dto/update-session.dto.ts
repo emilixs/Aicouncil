@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsBoolean } from 'class-validator';
+import { IsOptional, IsEnum, IsBoolean, IsNumber, Min, Max } from 'class-validator';
 import { SessionStatus } from '@prisma/client';
 
 /**
@@ -28,4 +28,10 @@ export class UpdateSessionDto {
   @IsOptional()
   @IsBoolean()
   consensusReached?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  @Max(1.0)
+  consensusThreshold?: number;
 }

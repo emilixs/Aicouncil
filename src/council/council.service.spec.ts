@@ -6,6 +6,7 @@ import { DriverFactory } from '../llm/factories/driver.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SessionStatus, MessageRole, DriverType } from '@prisma/client';
 import { MemoryService } from '../memory/memory.service';
+import { ConsensusService } from '../consensus/consensus.service';
 import { LLMResponse } from '../llm/dto/llm-response.dto';
 
 describe('CouncilService - Analytics Capture', () => {
@@ -112,6 +113,17 @@ describe('CouncilService - Analytics Capture', () => {
         { provide: DriverFactory, useValue: driverFactory },
         { provide: EventEmitter2, useValue: eventEmitter },
         { provide: MemoryService, useValue: memoryService },
+        {
+          provide: ConsensusService,
+          useValue: {
+            evaluateConsensus: jest.fn().mockResolvedValue({ convergenceScore: 0.5, consensusReached: false, areasOfAgreement: [], areasOfDisagreement: [], progressAssessment: 'ongoing', reasoning: 'test' }),
+            checkStallDetection: jest.fn().mockReturnValue({ stalled: false, stalledRounds: 0 }),
+            hasAutoPolledSession: jest.fn().mockResolvedValue(false),
+            createPoll: jest.fn().mockResolvedValue(undefined),
+            generateSummary: jest.fn().mockResolvedValue(undefined),
+            clearSessionState: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
