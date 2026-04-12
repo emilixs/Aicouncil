@@ -36,11 +36,13 @@ describe('HttpAuthGuard', () => {
 
   function createMockExecutionContext(
     headers: Record<string, string> = {},
+    type: string = 'http',
   ): ExecutionContext {
     const request = { headers, user: undefined };
     const handler = jest.fn();
     const klass = jest.fn();
     return {
+      getType: () => type,
       switchToHttp: () => ({
         getRequest: () => request,
       }),
@@ -61,6 +63,18 @@ describe('HttpAuthGuard', () => {
         IS_PUBLIC_KEY,
         [context.getHandler(), context.getClass()],
       );
+      expect(mockAuthService.verifyToken).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('non-HTTP contexts', () => {
+    it('should return true and skip auth for WebSocket contexts', () => {
+      const context = createMockExecutionContext({}, 'ws');
+
+      const result = guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(mockReflector.getAllAndOverride).not.toHaveBeenCalled();
       expect(mockAuthService.verifyToken).not.toHaveBeenCalled();
     });
   });
