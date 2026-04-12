@@ -13,6 +13,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { SessionType } from '@prisma/client';
 
 /**
@@ -48,6 +49,7 @@ export class CreateSessionDto {
    * Must be between 5 and 100 messages.
    */
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(5)
   @Max(100)
@@ -58,6 +60,7 @@ export class CreateSessionDto {
   type?: SessionType;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(0.1)
   @Max(1.0)
