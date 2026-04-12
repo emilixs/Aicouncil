@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MessageList } from './MessageList';
+import { MessageRole } from '@/types';
 
 vi.mock('./MessageItem', () => ({
   MessageItem: ({ message }: { message: { content: string } }) => (
@@ -12,20 +13,24 @@ const mockMessages = [
   {
     id: 'msg-1',
     content: 'Hello',
-    role: 'assistant',
+    role: MessageRole.ASSISTANT,
     expertId: 'exp-1',
     expertName: 'Expert 1',
+    expertSpecialty: 'Testing',
     sessionId: 'session-1',
-    createdAt: '2026-01-01T00:00:00Z',
+    isIntervention: false,
+    timestamp: '2026-01-01T00:00:00Z',
   },
   {
     id: 'msg-2',
     content: 'World',
-    role: 'assistant',
+    role: MessageRole.ASSISTANT,
     expertId: 'exp-2',
     expertName: 'Expert 2',
+    expertSpecialty: 'Testing',
     sessionId: 'session-1',
-    createdAt: '2026-01-01T00:01:00Z',
+    isIntervention: false,
+    timestamp: '2026-01-01T00:01:00Z',
   },
 ];
 

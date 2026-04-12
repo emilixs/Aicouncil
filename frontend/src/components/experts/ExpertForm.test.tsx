@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ExpertForm } from './ExpertForm';
+import { DriverType } from '@/types/expert';
 
 vi.mock('@/lib/api/experts', () => ({
   createExpert: vi.fn().mockResolvedValue({ id: 'new-id' }),
@@ -30,7 +31,7 @@ const mockExpert = {
   name: 'Test Expert',
   specialty: 'Testing',
   systemPrompt: 'You are a test expert.',
-  driverType: 'OPENAI' as const,
+  driverType: DriverType.OPENAI,
   config: { model: 'gpt-4', temperature: 0.7, maxTokens: 2000 },
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
