@@ -24,7 +24,7 @@ const makeMessages = (): LLMMessage[] => [
   { role: 'user', content: 'Hello' },
 ];
 
-const defaultConfig: LLMConfig = { model: 'claude-3-5-sonnet-20241022' } as LLMConfig;
+const defaultConfig: LLMConfig = { model: 'claude-sonnet-4-6' } as LLMConfig;
 
 const makeSuccessResponse = (overrides: Partial<{
   text: string;
@@ -41,7 +41,7 @@ const makeSuccessResponse = (overrides: Partial<{
     },
   ],
   stop_reason: overrides.stopReason !== undefined ? overrides.stopReason : 'end_turn',
-  model: overrides.model ?? 'claude-3-5-sonnet-20241022',
+  model: overrides.model ?? 'claude-sonnet-4-6',
   usage: {
     input_tokens: overrides.inputTokens ?? 10,
     output_tokens: overrides.outputTokens ?? 20,
@@ -62,17 +62,17 @@ describe('ClaudeDriver', () => {
         makeSuccessResponse({
           text: 'Hi there',
           stopReason: 'end_turn',
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-6',
           inputTokens: 5,
           outputTokens: 15,
         }),
       );
 
-      const result = await driver.chat(makeMessages(), { model: 'claude-3-5-sonnet-20241022' });
+      const result = await driver.chat(makeMessages(), { model: 'claude-sonnet-4-6' });
 
       expect(result.content).toBe('Hi there');
       expect(result.finishReason).toBe('stop');
-      expect(result.model).toBe('claude-3-5-sonnet-20241022');
+      expect(result.model).toBe('claude-sonnet-4-6');
       expect(result.usage).toEqual({
         promptTokens: 5,
         completionTokens: 15,
@@ -88,7 +88,7 @@ describe('ClaudeDriver', () => {
         { role: 'user', content: 'Hello' },
       ];
 
-      await driver.chat(messages, { model: 'claude-3-5-sonnet-20241022' });
+      await driver.chat(messages, { model: 'claude-sonnet-4-6' });
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -106,7 +106,7 @@ describe('ClaudeDriver', () => {
         { role: 'assistant', content: 'Hi!' },
       ];
 
-      await driver.chat(messages, { model: 'claude-3-5-sonnet-20241022' });
+      await driver.chat(messages, { model: 'claude-sonnet-4-6' });
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -121,7 +121,7 @@ describe('ClaudeDriver', () => {
     it('uses config defaults when no optional config values are specified', async () => {
       mockCreate.mockResolvedValue(makeSuccessResponse());
 
-      await driver.chat(makeMessages(), { model: 'claude-3-opus-20240229' });
+      await driver.chat(makeMessages(), { model: 'claude-opus-4-6' });
 
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -146,7 +146,7 @@ describe('ClaudeDriver', () => {
           makeSuccessResponse({ stopReason: apiReason }),
         );
 
-        const result = await driver.chat(makeMessages(), { model: 'claude-3-5-sonnet-20241022' });
+        const result = await driver.chat(makeMessages(), { model: 'claude-sonnet-4-6' });
 
         expect(result.finishReason).toBe(expectedReason);
       },
@@ -157,7 +157,7 @@ describe('ClaudeDriver', () => {
         makeSuccessResponse({ contentType: 'tool_use' }),
       );
 
-      const result = await driver.chat(makeMessages(), { model: 'claude-3-5-sonnet-20241022' });
+      const result = await driver.chat(makeMessages(), { model: 'claude-sonnet-4-6' });
 
       expect(result.content).toBe('');
     });

@@ -115,7 +115,7 @@ describe('GrokDriver', () => {
         temperature: 0.3,
         maxTokens: 1024,
         topP: 0.8,
-        model: 'grok-2',
+        model: 'grok-4.20-0309-reasoning',
       };
 
       await driver.chat(makeMessages(), config);
@@ -125,7 +125,7 @@ describe('GrokDriver', () => {
           temperature: 0.3,
           max_tokens: 1024,
           top_p: 0.8,
-          model: 'grok-2',
+          model: 'grok-4.20-0309-reasoning',
           stream: false,
         }),
       );

@@ -9,7 +9,7 @@ import { Type } from 'class-transformer';
  */
 export class LLMConfig {
   /**
-   * Model identifier (e.g., 'gpt-4', 'claude-3-5-sonnet-20241022')
+   * Model identifier (e.g., 'gpt-5.4-mini', 'claude-sonnet-4-6')
    */
   @IsString()
   model: string;

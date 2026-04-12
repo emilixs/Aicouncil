@@ -14,12 +14,12 @@ vi.mock('@/hooks/use-toast', () => ({
 
 vi.mock('@/lib/constants/models', () => ({
   MODEL_OPTIONS: {
-    OPENAI: [{ value: 'gpt-4', label: 'GPT-4' }],
+    OPENAI: [{ value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' }],
     ANTHROPIC: [{ value: 'claude-3', label: 'Claude 3' }],
     GROK: [{ value: 'grok-1', label: 'Grok 1' }],
   },
   DEFAULT_CONFIG: {
-    OPENAI: { model: 'gpt-4', temperature: 0.7, maxTokens: 2000 },
+    OPENAI: { model: 'gpt-5.4-mini', temperature: 0.7, maxTokens: 2000 },
     ANTHROPIC: { model: 'claude-3', temperature: 0.7, maxTokens: 2000 },
     GROK: { model: 'grok-1', temperature: 0.7, maxTokens: 2000 },
   },
@@ -31,7 +31,7 @@ const mockExpert = {
   specialty: 'Testing',
   systemPrompt: 'You are a test expert.',
   driverType: 'OPENAI' as const,
-  config: { model: 'gpt-4', temperature: 0.7, maxTokens: 2000 },
+  config: { model: 'gpt-5.4-mini', temperature: 0.7, maxTokens: 2000 },
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };
