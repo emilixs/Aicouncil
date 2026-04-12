@@ -72,10 +72,10 @@ describe('HttpAuthGuard', () => {
       const result = guard.canActivate(context);
 
       expect(result).toBe(true);
-      expect(mockReflector.getAllAndOverride).toHaveBeenCalledWith(
-        IS_PUBLIC_KEY,
-        [context.getHandler(), context.getClass()],
-      );
+      expect(mockReflector.getAllAndOverride).toHaveBeenCalledWith(IS_PUBLIC_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
       expect(mockAuthService.verifyToken).not.toHaveBeenCalled();
     });
   });
@@ -93,9 +93,7 @@ describe('HttpAuthGuard', () => {
       const result = guard.canActivate(context);
 
       expect(result).toBe(true);
-      expect(mockAuthService.verifyToken).toHaveBeenCalledWith(
-        'valid-token-here',
-      );
+      expect(mockAuthService.verifyToken).toHaveBeenCalledWith('valid-token-here');
 
       const request = context.switchToHttp().getRequest();
       expect(request.user).toEqual(payload);
@@ -107,9 +105,7 @@ describe('HttpAuthGuard', () => {
       mockReflector.getAllAndOverride.mockReturnValue(false);
       const context = createMockExecutionContext({});
 
-      expect(() => guard.canActivate(context)).toThrow(
-        UnauthorizedException,
-      );
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
     });
   });
 
@@ -120,9 +116,7 @@ describe('HttpAuthGuard', () => {
         authorization: 'Basic some-token',
       });
 
-      expect(() => guard.canActivate(context)).toThrow(
-        UnauthorizedException,
-      );
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException when header is just "Bearer" with no token', () => {
@@ -131,9 +125,7 @@ describe('HttpAuthGuard', () => {
         authorization: 'Bearer',
       });
 
-      expect(() => guard.canActivate(context)).toThrow(
-        UnauthorizedException,
-      );
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
     });
   });
 
@@ -146,12 +138,8 @@ describe('HttpAuthGuard', () => {
         authorization: 'Bearer expired-token',
       });
 
-      expect(() => guard.canActivate(context)).toThrow(
-        UnauthorizedException,
-      );
-      expect(mockAuthService.verifyToken).toHaveBeenCalledWith(
-        'expired-token',
-      );
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(mockAuthService.verifyToken).toHaveBeenCalledWith('expired-token');
     });
   });
 });

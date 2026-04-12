@@ -33,10 +33,7 @@ describe('MessageService - Analytics Fields', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        MessageService,
-        { provide: PrismaService, useValue: mockPrismaService },
-      ],
+      providers: [MessageService, { provide: PrismaService, useValue: mockPrismaService }],
     }).compile();
 
     service = module.get<MessageService>(MessageService);
@@ -77,7 +74,11 @@ describe('MessageService - Analytics Fields', () => {
   describe('create() with analytics fields', () => {
     it('should persist analytics fields when provided', async () => {
       mockPrismaService.session.findUnique.mockResolvedValue(mockSession);
-      mockPrismaService.sessionExpert.findUnique.mockResolvedValue({ id: '1', sessionId, expertId });
+      mockPrismaService.sessionExpert.findUnique.mockResolvedValue({
+        id: '1',
+        sessionId,
+        expertId,
+      });
       mockPrismaService.$transaction.mockImplementation(async (fn) => {
         const tx = {
           message: {
@@ -124,7 +125,11 @@ describe('MessageService - Analytics Fields', () => {
       };
 
       mockPrismaService.session.findUnique.mockResolvedValue(mockSession);
-      mockPrismaService.sessionExpert.findUnique.mockResolvedValue({ id: '1', sessionId, expertId });
+      mockPrismaService.sessionExpert.findUnique.mockResolvedValue({
+        id: '1',
+        sessionId,
+        expertId,
+      });
       mockPrismaService.$transaction.mockImplementation(async (fn) => {
         const tx = {
           message: {
