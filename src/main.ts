@@ -32,6 +32,8 @@ async function bootstrap() {
     credentials: true,
   });
 
+  app.setGlobalPrefix('api', { exclude: ['health'] });
+
   // Swagger/OpenAPI setup
   const swaggerConfig = new DocumentBuilder()
     .setTitle('AI Council API')
@@ -40,7 +42,7 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('docs', app, document);
 
   const port = configService.get<number>('PORT', 3000);
 
