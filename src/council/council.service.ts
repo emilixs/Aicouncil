@@ -169,6 +169,17 @@ export class CouncilService {
         `Cannot resume discussion: session status is ${session.status}. Must be PAUSED.`,
       );
     }
+    // Check for pending stop signal before transitioning to ACTIVE.
+    // If stop was requested while paused, skip the ACTIVE transition —
+    // the loop will handle the stop signal after the pause promise resolves.
+    const pendingSignal = this.controlSignals.get(sessionId);
+    if (pendingSignal === 'stop') {
+      const resolver = this.pauseResolvers.get(sessionId);
+      if (resolver) {
+        resolver();
+      }
+      return;
+    }
     await this.sessionService.update(sessionId, { status: SessionStatus.ACTIVE });
     this.eventEmitter.emit(DISCUSSION_EVENTS.SESSION_RESUMED, { sessionId });
     // Resolve the pause promise to let the loop continue
@@ -339,12 +350,6 @@ export class CouncilService {
             `Received response from ${currentExpert.name}: ${response.content.substring(0, 100)}...`,
           );
 
-          // Check control signals before creating message
-          const midTurnSignal = this.controlSignals.get(sessionId);
-          if (midTurnSignal === 'pause' || midTurnSignal === 'stop') {
-            continue; // Let the top of the loop handle it
-          }
-
           // Guard against empty or whitespace-only LLM responses
           const trimmedContent = response.content.trim();
           if (!trimmedContent) {
@@ -355,13 +360,25 @@ export class CouncilService {
             continue;
           }
 
-          // Create message in database
+          // Save the LLM response before checking signals — we already paid for it,
+          // and discarding it would lose work. Pause/stop takes effect at the next turn boundary.
           const message = await this.messageService.create({
             sessionId,
             expertId: currentExpert.id,
             content: trimmedContent,
             role: MessageRole.ASSISTANT,
           });
+
+          // Check control signals after saving the response
+          const midTurnSignal = this.controlSignals.get(sessionId);
+          if (midTurnSignal === 'pause' || midTurnSignal === 'stop') {
+            // Emit message event so clients see the saved response
+            this.eventEmitter.emit(DISCUSSION_EVENTS.MESSAGE_CREATED, {
+              sessionId,
+              message,
+            } as DiscussionMessageEvent);
+            continue; // Let the top of the loop handle the signal
+          }
 
           // Emit message created event
           this.eventEmitter.emit(DISCUSSION_EVENTS.MESSAGE_CREATED, {
