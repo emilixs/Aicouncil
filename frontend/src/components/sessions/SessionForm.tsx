@@ -156,7 +156,7 @@ export function SessionForm({ onSuccess, onCancel }: SessionFormProps) {
                 />
               </FormControl>
               <div className="text-xs text-muted-foreground">
-                {problemStatementValue.length}/2000 characters
+                {problemStatementValue.length} characters
               </div>
               <FormMessage />
             </FormItem>

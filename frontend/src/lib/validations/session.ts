@@ -3,8 +3,7 @@ import { z } from "zod";
 export const sessionFormSchema = z.object({
   problemStatement: z
     .string()
-    .min(10, "Problem statement must be at least 10 characters")
-    .max(2000, "Problem statement must be less than 2000 characters"),
+    .min(10, "Problem statement must be at least 10 characters"),
   expertIds: z
     .array(z.string())
     .min(2, "Select at least 2 experts")
