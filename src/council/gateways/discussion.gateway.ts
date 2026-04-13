@@ -117,7 +117,7 @@ export class DiscussionGateway
     });
   }
 
-  handleConnection(client: AuthenticatedSocket) {
+  async handleConnection(client: AuthenticatedSocket) {
     try {
       if (!client.data.user) {
         this.logger.error('Client connected without user data');
@@ -142,8 +142,16 @@ export class DiscussionGateway
 
       this.logger.log(`Client ${client.id} (user: ${userId}) connected to session ${sessionId}`);
 
-      // Emit connected event to client
-      client.emit('connected', { sessionId });
+      // Emit connected event with current session status so frontend can sync
+      try {
+        const session = await this.sessionService.findOne(sessionId);
+        client.emit('connected', {
+          sessionId,
+          status: session.statusDisplay,
+        });
+      } catch {
+        client.emit('connected', { sessionId });
+      }
     } catch (error) {
       this.logger.error('Error in handleConnection', error);
       client.disconnect();

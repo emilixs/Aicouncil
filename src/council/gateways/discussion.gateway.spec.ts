@@ -60,6 +60,7 @@ describe('DiscussionGateway', () => {
               id: 'session-1',
               type: 'DISCUSSION',
               status: 'PENDING',
+              statusDisplay: 'pending',
             }),
           },
         },
@@ -365,10 +366,10 @@ describe('DiscussionGateway', () => {
       expect(noAuthClient.join).not.toHaveBeenCalled();
     });
 
-    it('emits connected event with sessionId', () => {
-      gateway.handleConnection(mockClient as any);
+    it('emits connected event with sessionId and status', async () => {
+      await gateway.handleConnection(mockClient as any);
 
-      expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1' });
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1', status: 'pending' });
     });
 
     it('tracks subscription for connected client', () => {

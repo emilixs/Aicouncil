@@ -56,6 +56,13 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           }
         });
 
+        newSocket.on("connected", (data: { sessionId: string; status?: string }) => {
+          if (isMounted && data.status) {
+            setIsDiscussionActive(data.status === "active" || data.status === "paused");
+            setIsPaused(data.status === "paused");
+          }
+        });
+
         newSocket.on("disconnect", (reason) => {
           if (isMounted) {
             setIsConnected(false);
@@ -230,13 +237,30 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           return;
         }
 
-        socket.emit("intervention", { sessionId, content }, (response: { success: boolean; error?: string }) => {
-          if (response.success) {
-            resolve();
-          } else {
-            reject(new Error(response.error || "Failed to send intervention"));
-          }
-        });
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error("Intervention timed out"));
+        }, 10000);
+
+        const cleanup = () => {
+          clearTimeout(timeout);
+          socket.off("intervention-queued", onQueued);
+          socket.off("error", onError);
+        };
+
+        const onQueued = () => {
+          cleanup();
+          resolve();
+        };
+
+        const onError = (errorData: { message: string }) => {
+          cleanup();
+          reject(new Error(errorData.message || "Failed to send intervention"));
+        };
+
+        socket.on("intervention-queued", onQueued);
+        socket.on("error", onError);
+        socket.emit("intervention", { sessionId, content });
       });
     },
     [socket, sessionId]
