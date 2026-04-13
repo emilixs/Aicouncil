@@ -4,6 +4,8 @@ import { createSocketConnection, disconnectSocket } from "@/lib/socket";
 import { getSessionToken } from "@/lib/api/sessions";
 import type { MessageResponse, MessageRole } from "@/types";
 
+const INTERVENTION_TIMEOUT_MS = 10000;
+
 interface CurrentExpertTurn {
   expertId: string;
   expertName: string;
@@ -53,6 +55,13 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           if (isMounted) {
             setIsConnected(true);
             setError(null);
+          }
+        });
+
+        newSocket.on("connected", (data: { sessionId: string; status?: string }) => {
+          if (isMounted && data.status) {
+            setIsDiscussionActive(data.status === "active" || data.status === "paused");
+            setIsPaused(data.status === "paused");
           }
         });
 
@@ -230,13 +239,30 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
           return;
         }
 
-        socket.emit("intervention", { sessionId, content }, (response: { success: boolean; error?: string }) => {
-          if (response.success) {
-            resolve();
-          } else {
-            reject(new Error(response.error || "Failed to send intervention"));
-          }
-        });
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error("Intervention timed out"));
+        }, INTERVENTION_TIMEOUT_MS);
+
+        const cleanup = () => {
+          clearTimeout(timeout);
+          socket.off("intervention-queued", onQueued);
+          socket.off("intervention-error", onError);
+        };
+
+        const onQueued = () => {
+          cleanup();
+          resolve();
+        };
+
+        const onError = (errorData: { message: string }) => {
+          cleanup();
+          reject(new Error(errorData.message || "Failed to send intervention"));
+        };
+
+        socket.on("intervention-queued", onQueued);
+        socket.on("intervention-error", onError);
+        socket.emit("intervention", { sessionId, content });
       });
     },
     [socket, sessionId]

@@ -117,7 +117,7 @@ export class DiscussionGateway
     });
   }
 
-  handleConnection(client: AuthenticatedSocket) {
+  async handleConnection(client: AuthenticatedSocket) {
     try {
       if (!client.data.user) {
         this.logger.error('Client connected without user data');
@@ -142,8 +142,17 @@ export class DiscussionGateway
 
       this.logger.log(`Client ${client.id} (user: ${userId}) connected to session ${sessionId}`);
 
-      // Emit connected event to client
-      client.emit('connected', { sessionId });
+      // Emit connected event with current session status so frontend can sync
+      try {
+        const session = await this.sessionService.findOne(sessionId);
+        client.emit('connected', {
+          sessionId,
+          status: session.statusDisplay,
+        });
+      } catch (err) {
+        this.logger.warn(`Failed to fetch session ${sessionId} during connect: ${err?.message ?? err}`);
+        client.emit('connected', { sessionId });
+      }
     } catch (error) {
       this.logger.error('Error in handleConnection', error);
       client.disconnect();
@@ -366,7 +375,7 @@ export class DiscussionGateway
   ) {
     try {
       if (!client.data.user) {
-        client.emit('error', { message: 'Unauthorized' });
+        client.emit('intervention-error', { message: 'Unauthorized' });
         return;
       }
 
@@ -375,7 +384,7 @@ export class DiscussionGateway
 
       // Validate sessionId matches client session
       if (sessionId !== userSessionId) {
-        client.emit('error', {
+        client.emit('intervention-error', {
           message: 'Session ID mismatch',
         });
         return;
@@ -383,7 +392,7 @@ export class DiscussionGateway
 
       // Validate content
       if (!content || typeof content !== 'string' || content.trim().length === 0) {
-        client.emit('error', {
+        client.emit('intervention-error', {
           message: 'Invalid intervention content',
         });
         return;
@@ -393,7 +402,7 @@ export class DiscussionGateway
       const queued = await this.councilService.queueIntervention(sessionId, content, userId);
 
       if (!queued) {
-        client.emit('error', {
+        client.emit('intervention-error', {
           message: 'Intervention rejected: session not ACTIVE or failed to queue',
         });
         return;
@@ -403,7 +412,7 @@ export class DiscussionGateway
       client.emit('intervention-queued', { sessionId });
     } catch (error) {
       this.logger.error('Error in handleIntervention', error);
-      client.emit('error', {
+      client.emit('intervention-error', {
         message: error.message || 'Failed to queue intervention',
       });
     }

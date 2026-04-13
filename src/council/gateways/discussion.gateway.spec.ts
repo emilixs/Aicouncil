@@ -60,6 +60,7 @@ describe('DiscussionGateway', () => {
               id: 'session-1',
               type: 'DISCUSSION',
               status: 'PENDING',
+              statusDisplay: 'pending',
             }),
           },
         },
@@ -157,13 +158,13 @@ describe('DiscussionGateway', () => {
       );
     });
 
-    it('emits error when content is empty', async () => {
+    it('emits intervention-error when content is empty', async () => {
       await gateway.handleIntervention(
         { sessionId: 'session-1', content: '   ' },
         mockClient as any,
       );
 
-      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Invalid intervention content',
       });
       expect(councilService.queueIntervention).not.toHaveBeenCalled();
@@ -365,8 +366,42 @@ describe('DiscussionGateway', () => {
       expect(noAuthClient.join).not.toHaveBeenCalled();
     });
 
-    it('emits connected event with sessionId', () => {
-      gateway.handleConnection(mockClient as any);
+    it('emits connected event with sessionId and status', async () => {
+      await gateway.handleConnection(mockClient as any);
+
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1', status: 'pending' });
+    });
+
+    it('emits connected with active status when session is active', async () => {
+      (sessionService.findOne as jest.Mock).mockResolvedValue({
+        id: 'session-1',
+        type: 'DISCUSSION',
+        status: 'ACTIVE',
+        statusDisplay: 'active',
+      });
+
+      await gateway.handleConnection(mockClient as any);
+
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1', status: 'active' });
+    });
+
+    it('emits connected with paused status when session is paused', async () => {
+      (sessionService.findOne as jest.Mock).mockResolvedValue({
+        id: 'session-1',
+        type: 'DISCUSSION',
+        status: 'PAUSED',
+        statusDisplay: 'paused',
+      });
+
+      await gateway.handleConnection(mockClient as any);
+
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1', status: 'paused' });
+    });
+
+    it('emits connected without status when session lookup fails', async () => {
+      (sessionService.findOne as jest.Mock).mockRejectedValue(new Error('not found'));
+
+      await gateway.handleConnection(mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1' });
     });
@@ -410,18 +445,18 @@ describe('DiscussionGateway', () => {
   });
 
   describe('handleIntervention - edge cases', () => {
-    it('emits error when session ID mismatches', async () => {
+    it('emits intervention-error when session ID mismatches', async () => {
       await gateway.handleIntervention(
         { sessionId: 'wrong-session', content: 'text' },
         mockClient as any,
       );
 
-      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Session ID mismatch',
       });
     });
 
-    it('emits error when client has no user data', async () => {
+    it('emits intervention-error when client has no user data', async () => {
       const noAuthClient = {
         id: 'socket-4',
         data: {},
@@ -433,12 +468,12 @@ describe('DiscussionGateway', () => {
         noAuthClient as any,
       );
 
-      expect(noAuthClient.emit).toHaveBeenCalledWith('error', {
+      expect(noAuthClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Unauthorized',
       });
     });
 
-    it('emits error when queueIntervention returns false', async () => {
+    it('emits intervention-error when queueIntervention returns false', async () => {
       (councilService.queueIntervention as jest.Mock).mockResolvedValue(false);
 
       await gateway.handleIntervention(
@@ -446,7 +481,7 @@ describe('DiscussionGateway', () => {
         mockClient as any,
       );
 
-      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Intervention rejected: session not ACTIVE or failed to queue',
       });
     });
@@ -470,7 +505,7 @@ describe('DiscussionGateway', () => {
         mockClient as any,
       );
 
-      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Invalid intervention content',
       });
     });
