@@ -40,6 +40,7 @@ describe('SessionService', () => {
       findMany: jest.Mock;
       findUnique: jest.Mock;
       update: jest.Mock;
+      delete: jest.Mock;
     };
     expert: {
       findMany: jest.Mock;
@@ -61,6 +62,7 @@ describe('SessionService', () => {
               findMany: jest.fn(),
               findUnique: jest.fn(),
               update: jest.fn(),
+              delete: jest.fn(),
             },
             expert: {
               findMany: jest.fn(),
@@ -285,6 +287,16 @@ describe('SessionService', () => {
       expect(result.id).toBe('session-1');
     });
 
+    it('valid transition PAUSED -> CANCELLED', async () => {
+      mockCurrentSession(SessionStatus.PAUSED);
+      mockUpdatedSession(SessionStatus.CANCELLED);
+
+      const result = await service.update('session-1', { status: SessionStatus.CANCELLED });
+
+      expect(prisma.session.update).toHaveBeenCalled();
+      expect(result.id).toBe('session-1');
+    });
+
     it('throws NotFoundException when prisma.session.update returns P2025', async () => {
       mockCurrentSession(SessionStatus.PENDING);
 
@@ -297,6 +309,32 @@ describe('SessionService', () => {
       await expect(
         service.update('session-1', { status: SessionStatus.ACTIVE }),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // remove()
+  // ---------------------------------------------------------------------------
+  describe('remove()', () => {
+    it('deletes session when it exists', async () => {
+      prisma.session.findUnique.mockResolvedValue(mockPrismaSession);
+      prisma.session.delete.mockResolvedValue(mockPrismaSession);
+
+      await service.remove('session-1');
+
+      expect(prisma.session.findUnique).toHaveBeenCalledWith({
+        where: { id: 'session-1' },
+      });
+      expect(prisma.session.delete).toHaveBeenCalledWith({
+        where: { id: 'session-1' },
+      });
+    });
+
+    it('throws NotFoundException when session does not exist', async () => {
+      prisma.session.findUnique.mockResolvedValue(null);
+
+      await expect(service.remove('missing-id')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('missing-id')).rejects.toThrow('missing-id');
     });
   });
 });

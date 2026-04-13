@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSessions } from "@/lib/api/sessions";
 import { SessionResponse } from "@/types";
+import { DeleteSessionDialog } from "@/components/sessions/DeleteSessionDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +17,8 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<SessionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<SessionResponse | null>(null);
 
   // Fetch sessions on mount
   useEffect(() => {
@@ -44,6 +47,11 @@ export default function SessionsPage() {
 
   const handleViewSession = (sessionId: string) => {
     navigate(`/sessions/${sessionId}`);
+  };
+
+  const handleDeleteSession = (session: SessionResponse) => {
+    setSessionToDelete(session);
+    setDeleteDialogOpen(true);
   };
 
   const handleCreateSuccess = (sessionId: string) => {
@@ -107,6 +115,7 @@ export default function SessionsPage() {
               key={session.id}
               session={session}
               onViewSession={handleViewSession}
+              onDeleteSession={handleDeleteSession}
             />
           ))}
         </div>
@@ -117,6 +126,14 @@ export default function SessionsPage() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onSuccess={handleCreateSuccess}
+      />
+
+      {/* Delete Session Dialog */}
+      <DeleteSessionDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        session={sessionToDelete}
+        onSuccess={fetchSessions}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/auth/public.decorator';
 import { SessionService } from './session.service';
@@ -54,6 +54,12 @@ export class SessionController {
   @Get(':id')
   findOne(@Param('id') id: string): Promise<SessionResponseDto> {
     return this.sessionService.findOne(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id') id: string): Promise<void> {
+    return this.sessionService.remove(id);
   }
 
   @Get(':id/messages')
