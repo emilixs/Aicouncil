@@ -113,10 +113,7 @@ describe('DiscussionGateway', () => {
         status: 'PENDING',
       });
 
-      await gateway.handleStartDiscussion(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handleStartDiscussion({ sessionId: 'session-1' }, mockClient as any);
 
       // startDiscussion is called in a fire-and-forget catch chain; wait a tick
       await Promise.resolve();
@@ -132,10 +129,7 @@ describe('DiscussionGateway', () => {
         status: 'PENDING',
       });
 
-      await gateway.handleStartDiscussion(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handleStartDiscussion({ sessionId: 'session-1' }, mockClient as any);
 
       await Promise.resolve();
 
@@ -158,13 +152,13 @@ describe('DiscussionGateway', () => {
       );
     });
 
-    it('emits error when content is empty', async () => {
+    it('emits intervention-error when content is empty', async () => {
       await gateway.handleIntervention(
         { sessionId: 'session-1', content: '   ' },
         mockClient as any,
       );
 
-      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Invalid intervention content',
       });
       expect(councilService.queueIntervention).not.toHaveBeenCalled();
@@ -173,10 +167,7 @@ describe('DiscussionGateway', () => {
 
   describe('handlePauseDiscussion', () => {
     it('calls councilService.pauseDiscussion', async () => {
-      await gateway.handlePauseDiscussion(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handlePauseDiscussion({ sessionId: 'session-1' }, mockClient as any);
 
       expect(councilService.pauseDiscussion).toHaveBeenCalledWith('session-1');
     });
@@ -184,10 +175,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleResumeDiscussion', () => {
     it('calls councilService.resumeDiscussion', async () => {
-      await gateway.handleResumeDiscussion(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handleResumeDiscussion({ sessionId: 'session-1' }, mockClient as any);
 
       expect(councilService.resumeDiscussion).toHaveBeenCalledWith('session-1');
     });
@@ -195,10 +183,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleStopDiscussion', () => {
     it('calls councilService.stopDiscussion', async () => {
-      await gateway.handleStopDiscussion(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handleStopDiscussion({ sessionId: 'session-1' }, mockClient as any);
 
       expect(councilService.stopDiscussion).toHaveBeenCalledWith('session-1');
     });
@@ -206,10 +191,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleJoinSession', () => {
     it('joins room and emits joined-session', async () => {
-      await gateway.handleJoinSession(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handleJoinSession({ sessionId: 'session-1' }, mockClient as any);
 
       expect(mockClient.join).toHaveBeenCalledWith('session:session-1');
       expect(mockClient.emit).toHaveBeenCalledWith('joined-session', { sessionId: 'session-1' });
@@ -218,10 +200,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleLeaveSession', () => {
     it('leaves room and emits left-session', async () => {
-      await gateway.handleLeaveSession(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handleLeaveSession({ sessionId: 'session-1' }, mockClient as any);
 
       expect(mockClient.leave).toHaveBeenCalledWith('session:session-1');
       expect(mockClient.emit).toHaveBeenCalledWith('left-session', { sessionId: 'session-1' });
@@ -284,9 +263,11 @@ describe('DiscussionGateway', () => {
 
       await middleware(socket, next);
 
-      expect(next).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Unauthorized: No token provided',
-      }));
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Unauthorized: No token provided',
+        }),
+      );
     });
 
     it('rejects connection when token verification returns null', async () => {
@@ -303,9 +284,11 @@ describe('DiscussionGateway', () => {
 
       await middleware(socket, next);
 
-      expect(next).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Unauthorized: Invalid token',
-      }));
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Unauthorized: Invalid token',
+        }),
+      );
     });
 
     it('rejects connection when token verification throws', async () => {
@@ -324,9 +307,11 @@ describe('DiscussionGateway', () => {
 
       await middleware(socket, next);
 
-      expect(next).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Unauthorized: Token verification failed',
-      }));
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Unauthorized: Token verification failed',
+        }),
+      );
     });
 
     it('ignores non-bearer Authorization header', async () => {
@@ -344,9 +329,11 @@ describe('DiscussionGateway', () => {
 
       await middleware(socket, next);
 
-      expect(next).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Unauthorized: No token provided',
-      }));
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Unauthorized: No token provided',
+        }),
+      );
     });
   });
 
@@ -369,7 +356,50 @@ describe('DiscussionGateway', () => {
     it('emits connected event with sessionId and status', async () => {
       await gateway.handleConnection(mockClient as any);
 
-      expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1', status: 'pending' });
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', {
+        sessionId: 'session-1',
+        status: 'pending',
+      });
+    });
+
+    it('emits connected with active status when session is active', async () => {
+      (sessionService.findOne as jest.Mock).mockResolvedValue({
+        id: 'session-1',
+        type: 'DISCUSSION',
+        status: 'ACTIVE',
+        statusDisplay: 'active',
+      });
+
+      await gateway.handleConnection(mockClient as any);
+
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', {
+        sessionId: 'session-1',
+        status: 'active',
+      });
+    });
+
+    it('emits connected with paused status when session is paused', async () => {
+      (sessionService.findOne as jest.Mock).mockResolvedValue({
+        id: 'session-1',
+        type: 'DISCUSSION',
+        status: 'PAUSED',
+        statusDisplay: 'paused',
+      });
+
+      await gateway.handleConnection(mockClient as any);
+
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', {
+        sessionId: 'session-1',
+        status: 'paused',
+      });
+    });
+
+    it('emits connected without status when session lookup fails', async () => {
+      (sessionService.findOne as jest.Mock).mockRejectedValue(new Error('not found'));
+
+      await gateway.handleConnection(mockClient as any);
+
+      expect(mockClient.emit).toHaveBeenCalledWith('connected', { sessionId: 'session-1' });
     });
 
     it('tracks subscription for connected client', () => {
@@ -399,10 +429,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleStartDiscussion - session ID mismatch', () => {
     it('emits error when sessionId does not match client session', async () => {
-      await gateway.handleStartDiscussion(
-        { sessionId: 'different-session' },
-        mockClient as any,
-      );
+      await gateway.handleStartDiscussion({ sessionId: 'different-session' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'Session ID mismatch',
@@ -411,18 +438,18 @@ describe('DiscussionGateway', () => {
   });
 
   describe('handleIntervention - edge cases', () => {
-    it('emits error when session ID mismatches', async () => {
+    it('emits intervention-error when session ID mismatches', async () => {
       await gateway.handleIntervention(
         { sessionId: 'wrong-session', content: 'text' },
         mockClient as any,
       );
 
-      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Session ID mismatch',
       });
     });
 
-    it('emits error when client has no user data', async () => {
+    it('emits intervention-error when client has no user data', async () => {
       const noAuthClient = {
         id: 'socket-4',
         data: {},
@@ -434,12 +461,12 @@ describe('DiscussionGateway', () => {
         noAuthClient as any,
       );
 
-      expect(noAuthClient.emit).toHaveBeenCalledWith('error', {
+      expect(noAuthClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Unauthorized',
       });
     });
 
-    it('emits error when queueIntervention returns false', async () => {
+    it('emits intervention-error when queueIntervention returns false', async () => {
       (councilService.queueIntervention as jest.Mock).mockResolvedValue(false);
 
       await gateway.handleIntervention(
@@ -447,7 +474,7 @@ describe('DiscussionGateway', () => {
         mockClient as any,
       );
 
-      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Intervention rejected: session not ACTIVE or failed to queue',
       });
     });
@@ -471,7 +498,7 @@ describe('DiscussionGateway', () => {
         mockClient as any,
       );
 
-      expect(mockClient.emit).toHaveBeenCalledWith('error', {
+      expect(mockClient.emit).toHaveBeenCalledWith('intervention-error', {
         message: 'Invalid intervention content',
       });
     });
@@ -479,10 +506,7 @@ describe('DiscussionGateway', () => {
 
   describe('handlePauseDiscussion - session ID mismatch', () => {
     it('emits error when session ID mismatches', async () => {
-      await gateway.handlePauseDiscussion(
-        { sessionId: 'wrong-session' },
-        mockClient as any,
-      );
+      await gateway.handlePauseDiscussion({ sessionId: 'wrong-session' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'Session ID mismatch',
@@ -490,14 +514,9 @@ describe('DiscussionGateway', () => {
     });
 
     it('emits error when councilService throws', async () => {
-      (councilService.pauseDiscussion as jest.Mock).mockRejectedValue(
-        new Error('not running'),
-      );
+      (councilService.pauseDiscussion as jest.Mock).mockRejectedValue(new Error('not running'));
 
-      await gateway.handlePauseDiscussion(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handlePauseDiscussion({ sessionId: 'session-1' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'not running',
@@ -507,10 +526,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleResumeDiscussion - session ID mismatch', () => {
     it('emits error when session ID mismatches', async () => {
-      await gateway.handleResumeDiscussion(
-        { sessionId: 'wrong-session' },
-        mockClient as any,
-      );
+      await gateway.handleResumeDiscussion({ sessionId: 'wrong-session' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'Session ID mismatch',
@@ -518,14 +534,9 @@ describe('DiscussionGateway', () => {
     });
 
     it('emits error when councilService throws', async () => {
-      (councilService.resumeDiscussion as jest.Mock).mockRejectedValue(
-        new Error('not paused'),
-      );
+      (councilService.resumeDiscussion as jest.Mock).mockRejectedValue(new Error('not paused'));
 
-      await gateway.handleResumeDiscussion(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handleResumeDiscussion({ sessionId: 'session-1' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'not paused',
@@ -535,10 +546,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleStopDiscussion - session ID mismatch', () => {
     it('emits error when session ID mismatches', async () => {
-      await gateway.handleStopDiscussion(
-        { sessionId: 'wrong-session' },
-        mockClient as any,
-      );
+      await gateway.handleStopDiscussion({ sessionId: 'wrong-session' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'Session ID mismatch',
@@ -546,14 +554,9 @@ describe('DiscussionGateway', () => {
     });
 
     it('emits error when councilService throws', async () => {
-      (councilService.stopDiscussion as jest.Mock).mockRejectedValue(
-        new Error('not active'),
-      );
+      (councilService.stopDiscussion as jest.Mock).mockRejectedValue(new Error('not active'));
 
-      await gateway.handleStopDiscussion(
-        { sessionId: 'session-1' },
-        mockClient as any,
-      );
+      await gateway.handleStopDiscussion({ sessionId: 'session-1' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'not active',
@@ -563,10 +566,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleJoinSession - session ID mismatch', () => {
     it('emits error when session ID mismatches', async () => {
-      await gateway.handleJoinSession(
-        { sessionId: 'wrong-session' },
-        mockClient as any,
-      );
+      await gateway.handleJoinSession({ sessionId: 'wrong-session' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'Session ID mismatch',
@@ -576,10 +576,7 @@ describe('DiscussionGateway', () => {
 
   describe('handleLeaveSession - session ID mismatch', () => {
     it('emits error when session ID mismatches', async () => {
-      await gateway.handleLeaveSession(
-        { sessionId: 'wrong-session' },
-        mockClient as any,
-      );
+      await gateway.handleLeaveSession({ sessionId: 'wrong-session' }, mockClient as any);
 
       expect(mockClient.emit).toHaveBeenCalledWith('error', {
         message: 'Session ID mismatch',

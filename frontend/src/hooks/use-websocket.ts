@@ -4,6 +4,8 @@ import { createSocketConnection, disconnectSocket } from "@/lib/socket";
 import { getSessionToken } from "@/lib/api/sessions";
 import type { MessageResponse, MessageRole } from "@/types";
 
+const INTERVENTION_TIMEOUT_MS = 10000;
+
 interface CurrentExpertTurn {
   expertId: string;
   expertName: string;
@@ -240,12 +242,12 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
         const timeout = setTimeout(() => {
           cleanup();
           reject(new Error("Intervention timed out"));
-        }, 10000);
+        }, INTERVENTION_TIMEOUT_MS);
 
         const cleanup = () => {
           clearTimeout(timeout);
           socket.off("intervention-queued", onQueued);
-          socket.off("error", onError);
+          socket.off("intervention-error", onError);
         };
 
         const onQueued = () => {
@@ -259,7 +261,7 @@ export function useWebSocket(sessionId: string): UseWebSocketReturn {
         };
 
         socket.on("intervention-queued", onQueued);
-        socket.on("error", onError);
+        socket.on("intervention-error", onError);
         socket.emit("intervention", { sessionId, content });
       });
     },

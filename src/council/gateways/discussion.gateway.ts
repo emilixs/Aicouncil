@@ -149,7 +149,10 @@ export class DiscussionGateway
           sessionId,
           status: session.statusDisplay,
         });
-      } catch {
+      } catch (err) {
+        this.logger.warn(
+          `Failed to fetch session ${sessionId} during connect: ${err?.message ?? err}`,
+        );
         client.emit('connected', { sessionId });
       }
     } catch (error) {
@@ -237,13 +240,16 @@ export class DiscussionGateway
       this.server.to(roomName).emit('discussion-stopped', { sessionId: event.sessionId });
     });
 
-    this.eventEmitter.on(DISCUSSION_EVENTS.CONSENSUS_EVALUATION, (event: ConsensusEvaluationEvent) => {
-      const roomName = `session:${event.sessionId}`;
-      this.server.to(roomName).emit('consensus-evaluation', {
-        sessionId: event.sessionId,
-        evaluation: event.evaluation,
-      });
-    });
+    this.eventEmitter.on(
+      DISCUSSION_EVENTS.CONSENSUS_EVALUATION,
+      (event: ConsensusEvaluationEvent) => {
+        const roomName = `session:${event.sessionId}`;
+        this.server.to(roomName).emit('consensus-evaluation', {
+          sessionId: event.sessionId,
+          evaluation: event.evaluation,
+        });
+      },
+    );
 
     this.eventEmitter.on(DISCUSSION_EVENTS.DISCUSSION_SUMMARY, (event: DiscussionSummaryEvent) => {
       const roomName = `session:${event.sessionId}`;
@@ -374,7 +380,7 @@ export class DiscussionGateway
   ) {
     try {
       if (!client.data.user) {
-        client.emit('error', { message: 'Unauthorized' });
+        client.emit('intervention-error', { message: 'Unauthorized' });
         return;
       }
 
@@ -383,7 +389,7 @@ export class DiscussionGateway
 
       // Validate sessionId matches client session
       if (sessionId !== userSessionId) {
-        client.emit('error', {
+        client.emit('intervention-error', {
           message: 'Session ID mismatch',
         });
         return;
@@ -391,7 +397,7 @@ export class DiscussionGateway
 
       // Validate content
       if (!content || typeof content !== 'string' || content.trim().length === 0) {
-        client.emit('error', {
+        client.emit('intervention-error', {
           message: 'Invalid intervention content',
         });
         return;
@@ -401,7 +407,7 @@ export class DiscussionGateway
       const queued = await this.councilService.queueIntervention(sessionId, content, userId);
 
       if (!queued) {
-        client.emit('error', {
+        client.emit('intervention-error', {
           message: 'Intervention rejected: session not ACTIVE or failed to queue',
         });
         return;
@@ -411,7 +417,7 @@ export class DiscussionGateway
       client.emit('intervention-queued', { sessionId });
     } catch (error) {
       this.logger.error('Error in handleIntervention', error);
-      client.emit('error', {
+      client.emit('intervention-error', {
         message: error.message || 'Failed to queue intervention',
       });
     }
