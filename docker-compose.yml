@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aicouncil}
       POSTGRES_DB: ${POSTGRES_DB:-aicouncil}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-aicouncil}:${POSTGRES_PASSWORD:-aicouncil}@postgres:5432/${POSTGRES_DB:-aicouncil}
       PORT: 3000
@@ -38,7 +38,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       - backend
 
